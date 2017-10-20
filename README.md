@@ -56,12 +56,12 @@ Preparation is roughly the same command as in the original code.
 
 For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command
 ```bash
-python3 data/prepare_train_data.py --dataset_dir /path/to/raw/kitti/dataset/ --dataset_name 'kitti_raw_eigen' --dump_root /path/to/resulting/formatted/data/ --img_width 416 --img_height 128 --num_threads 4
+python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt]
 ```
 
 For [Cityscapes](https://www.cityscapes-dataset.com/), download the following packages: 1) `leftImg8bit_sequence_trainvaltest.zip`, 2) `camera_trainvaltest.zip`. You will probably need to contact the administrators to be able to get it. Then run the following command
 ```bash
-python3 data/prepare_train_data.py --dataset_dir /path/to/cityscapes/dataset/ --dataset_name' cityscapes' --dump_root /path/to/resulting/formatted/data/ --img_width 416 --img_height 171 --num_threads 4
+python3 data/prepare_train_data.py /path/to/cityscapes/dataset/ --dataset-format 'cityscapes' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 171 --num-threads 4
 ```
 Notice that for Cityscapes the `img_height` is set to 171 because we crop out the bottom part of the image that contains the car logo, and the resulting image will have height 128.
 
