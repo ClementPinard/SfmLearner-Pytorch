@@ -7,9 +7,12 @@ Unsupervised Learning of Depth and Ego-Motion from Video
 
 In CVPR 2017 (**Oral**).
 
-See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/) for more details. Please contact Tinghui Zhou (tinghuiz@berkeley.edu) if you have any questions.
+See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/) for more details. 
 
-<img src='misc/cityscapes_sample_results.gif' width=320>
+Original Author : Tinghui Zhou (tinghuiz@berkeley.edu)
+Pytorch implementation : Clément Pinard (clement.pinard@ensta-paristech.fr)
+
+![sample_results](misc/cityscapes_sample_results.gif)
 
 ## Preamble
 This codebase was developed and tested with Pytorch 0.2, CUDA 8.0 and Ubuntu 16.04. Original code was developped in tensorflow, you can access it [here](https://github.com/tinghuiz/SfMLearner)
@@ -39,7 +42,7 @@ It is also advised to have python3 bindings for opencv for tensorboard visualiza
 
 * Training has been tested on KITTI and CityScapes. Convergence is reached, although with a different set of hyperparameters.
 * Dataset preparation has been largely improved, and now stores image sequences in folders, making sure that movement is each time big enough between each frame
-* That way, training is now significantly faster, running at ~0.14sec per step vs ~0.2s per steps initially
+* That way, training is now significantly faster, running at ~0.14sec per step vs ~0.2s per steps initially (on a single GTX980Ti)
 * In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
 * You can still choose the former stacked frames dataset format.
 
