@@ -107,9 +107,9 @@ def pose_vec2mat(vec):
     Convert 6DoF parameters to transformation matrix.
 
     Args:s
-        vec: 6DoF parameters in the order of rx, ry, rz, tx, ty, tz -- [B, 6]
+        vec: 6DoF parameters in the order of tx, ty, tz, rx, ry, rz -- [B, 6]
     Returns:
-        A transformation matrix -- [B, 4, 4]
+        A transformation matrix -- [B, 3, 4]
     """
     batch_size = vec.size(0)
     translation = vec[:, :3].unsqueeze(-1) # [B, 3, 1]

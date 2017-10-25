@@ -106,13 +106,15 @@ def main():
         args.data,
         transform=input_transform,
         seed=args.seed,
-        train=True
+        train=True,
+        sequence_length=args.sequence_length
     )
     val_set = SequenceFolder(
         args.data,
         transform=custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize]),
         seed=args.seed,
-        train=False
+        train=False,
+        sequence_length=args.sequence_length
     )
     print('{} samples found in {} train scenes'.format(len(train_set), len(train_set.scenes)))
     print('{} samples found in {} valid scenes'.format(len(val_set), len(val_set.scenes)))
