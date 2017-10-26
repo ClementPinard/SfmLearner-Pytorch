@@ -150,11 +150,7 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv):
     # Get projection matrix for tgt camera frame to source pixel frame
     proj_cam_to_src_pixel = intrinsics.bmm(pose_mat)  # [B, 3, 4]
 
-    src_pixel_coords = cam2pixel(cam_coords, proj_cam_to_src_pixel)  # [B, H, W, 2]
-    # src_pixel_coords = pose_vec2pixel(pose, cam_coords, intrinsics)
+    src_pixel_coords = cam2pixel(cam_coords, proj_cam_to_src_pixel)  # [B,H,W,2]
     projected_img = torch.nn.functional.grid_sample(img, src_pixel_coords)
-
-
-    # projected_img = _bilinear_sample(img, src_pixel_coords[:, 0], src_pixel_coords[:, 1])
 
     return projected_img
