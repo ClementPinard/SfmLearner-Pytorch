@@ -58,7 +58,7 @@ class SequenceFolder(data.Dataset):
         sample = self.samples[index]
         imgs = load_as_float(sample['img_stack'], self.sequence_length)
         if self.transform is not None:
-            imgs, intrinsics = self.transform(imgs, sample['intrinsics'])
+            imgs, intrinsics = self.transform(imgs, np.copy(sample['intrinsics']))
         else:
             intrinsics = sample['intrinsics']
         return imgs[0], imgs[1:], intrinsics, np.linalg.inv(intrinsics)
