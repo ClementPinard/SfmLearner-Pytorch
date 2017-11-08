@@ -53,7 +53,7 @@ class SequenceFolder(data.Dataset):
         tgt_img = load_as_float(sample['tgt'])
         ref_imgs = [load_as_float(ref_img) for ref_img in sample['ref_imgs']]
         if self.transform is not None:
-            imgs, intrinsics = self.transform([tgt_img] + ref_imgs, sample['intrinsics'])
+            imgs, intrinsics = self.transform([tgt_img] + ref_imgs, np.copy(sample['intrinsics']))
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
         else:
