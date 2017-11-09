@@ -57,7 +57,7 @@ class SequenceFolder(data.Dataset):
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
         else:
-            intrinsics = sample['intrinsics']
+            intrinsics = np.copy(sample['intrinsics'])
         return tgt_img, ref_imgs, intrinsics, np.linalg.inv(intrinsics)
 
     def __len__(self):

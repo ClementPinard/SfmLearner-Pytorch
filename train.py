@@ -19,7 +19,7 @@ from loss_functions import photometric_reconstruction_loss, explainability_loss,
 from logger import TermLogger, AverageMeter
 from path import Path
 from itertools import chain
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 
 parser = argparse.ArgumentParser(description='Structure from Motion Learner training on KITTI and CityScapes Dataset')
 
@@ -136,24 +136,25 @@ def main():
 
     if args.pretrained_exp_pose:
         print("=> using pre-trained weights for explainabilty and pose net")
-        a = torch.load(args.pretrained_exp_pose)
-        pose_exp_net.load_state_dict(a['state_dict'])
+        weights = torch.load(args.pretrained_exp_pose)
+        pose_exp_net.load_state_dict(weights['state_dict'])
     else:
         pose_exp_net.init_weights()
 
     if args.pretrained_disp:
         print("=> using pre-trained weights for Dispnet")
-        a = torch.load(args.pretrained_disp)
-        disp_net.load_state_dict(a['state_dict'])
+        weights = torch.load(args.pretrained_disp)
+        disp_net.load_state_dict(weights['state_dict'])
     else:
         disp_net.init_weights()
         
     cudnn.benchmark = True
+    disp_net = torch.nn.DataParallel(disp_net)
+    pose_exp_net = torch.nn.DataParallel(pose_exp_net)
+
     print('=> setting adam solver')
 
-    parameters = set()
-    for net_ in [disp_net, pose_exp_net]:
-        parameters |= set(net_.parameters())
+    parameters = chain(disp_net.parameters(), pose_exp_net.parameters())
     optimizer = torch.optim.Adam(parameters, args.lr,
                                 betas=(args.momentum, args.beta),
                                 weight_decay=args.weight_decay)
@@ -196,10 +197,10 @@ def main():
         save_checkpoint(
             args.save_path, {
             'epoch': epoch + 1,
-            'state_dict': disp_net.state_dict()
+            'state_dict': disp_net.module.state_dict()
             }, {
             'epoch': epoch + 1,
-            'state_dict': pose_exp_net.state_dict()
+            'state_dict': pose_exp_net.module.state_dict()
             },
             is_best)
 
