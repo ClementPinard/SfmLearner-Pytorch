@@ -10,7 +10,8 @@ from models import DispNetS
 from utils import tensor2array
 
 parser = argparse.ArgumentParser(description='Inference script for DispNet learned with \
-                                Structure from Motion Learner inference on KITTI and CityScapes Dataset')
+                                Structure from Motion Learner inference on KITTI and CityScapes Dataset',
+                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--output-disp", action='store_true', help="save disparity img")
 parser.add_argument("--output-depth", action='store_true', help="save depth img")
 parser.add_argument("--pretrained", required=True, type=str, help="pretrained DispNet path")
