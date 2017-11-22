@@ -20,7 +20,7 @@ parser.add_argument("--no-resize", action='store_true', help="no resizing is don
 
 parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list file")
 parser.add_argument("--dataset-dir", default='.', type=str, help="Dataset directory")
-parser.add_argument("--output_dir", default='output', type=str, help="Output directory")
+parser.add_argument("--output-dir", default='output', type=str, help="Output directory")
 
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 

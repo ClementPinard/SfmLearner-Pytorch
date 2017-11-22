@@ -48,7 +48,7 @@ It is also advised to have python3 bindings for opencv for tensorboard visualiza
 
 ### Still needed to do
 
-* Disparity and Pose evaluation code, along with thorough comparison between tensorflow and pytorch version
+* Pose evaluation code, along with thorough comparison between tensorflow and pytorch version
 * For some reason, original hyperparameters does not seem to make the models converge, some investigations need to be done
 
 ## Preparing training data
@@ -74,4 +74,19 @@ You can then start a `tensorboard` session in this folder by
 ```bash
 tensorboard --logdir=checkpoints/
 ```
-and visualize the training progress by opening [https://localhost:6006](https://localhost:6006) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI. 
+and visualize the training progress by opening [https://localhost:6006](https://localhost:6006) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI.
+
+## Evaluation
+
+Disparity map generation can be done with `run_inference.py`
+```bash
+python3 run_inference.py --pretrained /path/to/dispnet --dataset-dir /path/pictures/dir --output-dir /path/to/output/dir
+```
+Will run inference on all pictures inside `dataset-dir` and save a jpg of disparity (or depth) to `output-dir` for each one see script help (`-h`) for more options.
+
+Disparity evaluation is avalaible
+```bash
+python3 test_disp.py --pretrained-dispnet /path/to/dispnet --pretrained-posent /path/to/posenet --dataset-dir /path/to/KITTI_raw --dataset-list /path/to/test_files_list
+```
+
+Test file list is available in kitti eval folder. To get fair comparison with [Original paper evaluation code](https://github.com/tinghuiz/SfMLearner/blob/master/kitti_eval/eval_depth.py), don't specify a posenet. However, if you do,  it will be used to solve the scale factor ambiguity, the only ground truth used to get it will be vehicle speed which is far more acceptable for real conditions quality measurement, but you will obviously get worse results.
