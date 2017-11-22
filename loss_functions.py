@@ -6,7 +6,7 @@ from inverse_warp import inverse_warp
 
 def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose):
     def one_scale(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose):
-        assert(depth.size()[2:] == explainability_mask.size()[2:])
+        assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
         assert(pose.size(1) == len(ref_imgs))
 
         reconstruction_loss = 0
@@ -22,8 +22,12 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
             current_pose = pose[:, i]
 
             ref_img_warped = inverse_warp(ref_img, depth[:,0], current_pose, intrinsics_scaled, intrinsics_scaled_inv)
+            out_of_bound  = 1 - (ref_img_warped==0).prod(1, keepdim=True).type_as(ref_img_warped)
+            diff = (tgt_img_scaled - ref_img_warped) * out_of_bound
 
-            diff = (tgt_img_scaled - ref_img_warped) * explainability_mask[:,i:i+1].expand_as(tgt_img_scaled)
+            if explainability_mask is not None:
+                diff *= explainability_mask[:,i:i+1].expand_as(diff)
+
             reconstruction_loss += diff.abs().mean()
             assert((reconstruction_loss == reconstruction_loss).cpu().data[0] == 1)
 
