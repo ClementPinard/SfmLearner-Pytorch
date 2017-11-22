@@ -58,7 +58,7 @@ parser.add_argument('--log-summary', default='progress_log_summary.csv',
                     help='csv where to save per-epoch train and valid stats')
 parser.add_argument('--log-full', default='progress_log_full.csv',
                     help='csv where to save per-gradient descent train stats')
-parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', default=100)
+parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', default=1)
 parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', default=0)
 parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', default=0.1)
 parser.add_argument('--sequence-length', type=int, help='sequence length for training', default=3)
@@ -248,12 +248,12 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
 
-        if i>0 and n_iter%args.print_freq ==0
-        train_writer.add_scalar('photometric_error', loss_1.data[0], n_iter)
-        if w2 > 0:
-            train_writer.add_scalar('explanability_loss', loss_2.data[0], n_iter)
-        train_writer.add_scalar('disparity_smoothness_loss', loss_3.data[0], n_iter)
-        train_writer.add_scalar('total_loss', loss.data[0], n_iter)
+        if i>0 and n_iter%args.print_freq == 0:
+            train_writer.add_scalar('photometric_error', loss_1.data[0], n_iter)
+            if w2 > 0:
+                train_writer.add_scalar('explanability_loss', loss_2.data[0], n_iter)
+            train_writer.add_scalar('disparity_smoothness_loss', loss_3.data[0], n_iter)
+            train_writer.add_scalar('total_loss', loss.data[0], n_iter)
 
         if n_iter%200 ==0 and args.log_training_output:
 
