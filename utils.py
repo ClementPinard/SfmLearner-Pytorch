@@ -25,8 +25,9 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
                 tensor.unsqueeze_(2)
             array = (tensor.expand(tensor.size(0), tensor.size(1), 3).numpy()/max_value).clip(0,1)
 
-    elif tensor.ndimension() == 3 and tensor.size(0) == 3:
-        array = 0.5 + tensor.numpy().transpose(1, 2, 0)*0.2
+    elif tensor.ndimension() == 3:
+        assert(tensor.size(0) == 3)
+        array = 0.5 + tensor.numpy().transpose(1, 2, 0)*0.5
     return array
 
 def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, filename='checkpoint.pth.tar'):

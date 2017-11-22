@@ -21,7 +21,8 @@ from path import Path
 from itertools import chain
 from tensorboardX import SummaryWriter
 
-parser = argparse.ArgumentParser(description='Structure from Motion Learner training on KITTI and CityScapes Dataset')
+parser = argparse.ArgumentParser(description='Structure from Motion Learner training on KITTI and CityScapes Dataset',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
@@ -29,9 +30,9 @@ parser.add_argument('--dataset-format', default='sequential',
                     help='dataset format, stacked: stacked frames (from original TensorFlow code) \
                     sequential: sequential folders (easier to convert to with a non KITTI/Cityscape dataset')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
+                    help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
-                    help='number of total epochs to run (default: 55')
+                    help='number of total epochs to run')
 parser.add_argument('--epoch-size', default=0, type=int, metavar='N',
                     help='manual epoch size (will match dataset size if not set)')
 parser.add_argument('-b', '--batch-size', default=4, type=int,
@@ -42,10 +43,10 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum for sgd, alpha parameter for adam')
 parser.add_argument('--beta', default=0.999, type=float, metavar='M',
                     help='beta parameters for adam')
-parser.add_argument('--weight-decay', '--wd', default=0.005, type=float,
-                    metavar='W', help='weight decay (default: 5e-3)')
+parser.add_argument('--weight-decay', '--wd', default=0, type=float,
+                    metavar='W', help='weight decay')
 parser.add_argument('--print-freq', default=10, type=int,
-                    metavar='N', help='print frequency (default: 10)')
+                    metavar='N', help='print frequency')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
 parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None,
@@ -57,11 +58,12 @@ parser.add_argument('--log-summary', default='progress_log_summary.csv',
                     help='csv where to save per-epoch train and valid stats')
 parser.add_argument('--log-full', default='progress_log_full.csv',
                     help='csv where to save per-gradient descent train stats')
-parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', default=1)
-parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', default=1)
-parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', default=0.2)
+parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', default=100)
+parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', default=0)
+parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', default=0.1)
 parser.add_argument('--sequence-length', type=int, help='sequence length for training', default=3)
 parser.add_argument('--log-output', action='store_true', help='will log dispnet outputs and warped imgs at validation step')
+parser.add_argument('--log-training-output', action='store_true', help='will log dispnet outputs and warped imgs at training for all scales')
 
 best_photo_loss = -1
 n_iter = 0
@@ -73,11 +75,9 @@ def main():
         from datasets.stacked_sequence_folders import SequenceFolder
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
-    save_path = Path('{}epochs{},b{},lr{}'.format(
-        args.epochs,
-        ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '',
-        args.batch_size,
-        args.lr))
+    save_path = Path('{}epochs{},b{},lr{},p{},m{},s{}'.format(
+        args.epochs, ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '', args.batch_size,
+        args.lr, args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight))
     timestamp = datetime.datetime.now().strftime("%m-%d-%H:%M")
     args.save_path = 'checkpoints'/save_path/timestamp
     print('=> will save everything to {}'.format(args.save_path))
@@ -93,7 +93,7 @@ def main():
 
     # Data loading code
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                     std=[0.2, 0.2, 0.2])
+                                     std=[0.5, 0.5, 0.5])
     input_transform = custom_transforms.Compose([
                 custom_transforms.RandomHorizontalFlip(),
                 custom_transforms.RandomScaleCrop(),
@@ -132,12 +132,15 @@ def main():
     print("=> creating model")
 
     disp_net = models.DispNetS().cuda()
-    pose_exp_net = models.PoseExpNet(nb_ref_imgs=args.sequence_length - 1).cuda()
+    output_exp = args.mask_loss_weight > 0
+    if not output_exp:
+        print("=> no mask loss, PoseExpnet will only output pose")
+    pose_exp_net = models.PoseExpNet(nb_ref_imgs=args.sequence_length - 1, output_exp=args.mask_loss_weight > 0).cuda()
 
     if args.pretrained_exp_pose:
         print("=> using pre-trained weights for explainabilty and pose net")
         weights = torch.load(args.pretrained_exp_pose)
-        pose_exp_net.load_state_dict(weights['state_dict'])
+        pose_exp_net.load_state_dict(weights['state_dict'], strict=False)
     else:
         pose_exp_net.init_weights()
 
@@ -237,25 +240,27 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
         explainability_mask, pose = pose_exp_net(tgt_img_var, ref_imgs_var)
 
         loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
-        loss_2 = explainability_loss(explainability_mask)
+        if w2 > 0:
+            loss_2 = explainability_loss(explainability_mask)
+        else:
+            loss_2 = 0
         loss_3 = smooth_loss(disparities)
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
 
+        if i>0 and n_iter%args.print_freq ==0
         train_writer.add_scalar('photometric_error', loss_1.data[0], n_iter)
-        train_writer.add_scalar('explanability_loss', loss_2.data[0], n_iter)
+        if w2 > 0:
+            train_writer.add_scalar('explanability_loss', loss_2.data[0], n_iter)
         train_writer.add_scalar('disparity_smoothness_loss', loss_3.data[0], n_iter)
         train_writer.add_scalar('total_loss', loss.data[0], n_iter)
 
-        if n_iter%200 ==0 and args.log_output:
+        if n_iter%200 ==0 and args.log_training_output:
 
-            train_writer.add_image('train Input', tensor2array(ref_imgs[0][0]), n_iter - 1)
             train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
-            train_writer.add_image('train Input', tensor2array(ref_imgs[1][0]), n_iter + 1)
-
 
             for k,scaled_depth in enumerate(depth):
-                train_writer.add_image('train Dispnet Output {}'.format(k), tensor2array(disparities[k].data[0].cpu(), max_value=10, colormap='bone'), n_iter)
+                train_writer.add_image('train Dispnet Output {}'.format(k), tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'), n_iter)
                 train_writer.add_image('train Depth Output Normalized {}'.format(k), tensor2array(1/disparities[k].data[0].cpu(), max_value=None), n_iter)
                 b, _, h, w = scaled_depth.size()
                 downscale = tgt_img_var.size(2)/h
@@ -269,9 +274,10 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
                 # log warped images along with explainability mask
                 for j,ref in enumerate(ref_imgs_scaled):
                     ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j], intrinsics_scaled, intrinsics_scaled_inv)[0]
-                    train_writer.add_image('train Warped Outputs {} {}'.format(k,j), tensor2array(ref_warped.data.cpu(), max_value=1), n_iter)
+                    train_writer.add_image('train Warped Outputs {} {}'.format(k,j), tensor2array(ref_warped.data.cpu()), n_iter)
                     train_writer.add_image('train Diff Outputs {} {}'.format(k,j), tensor2array(0.5*(tgt_img_scaled[0] - ref_warped).abs().data.cpu()), n_iter)
-                    train_writer.add_image('train Exp mask Outputs {} {}'.format(k,j), tensor2array(explainability_mask[k][0,j].data.cpu(), max_value=1, colormap='bone'), n_iter)
+                    if explainability_mask[k] is not None:
+                        train_writer.add_image('train Exp mask Outputs {} {}'.format(k,j), tensor2array(explainability_mask[k][0,j].data.cpu(), max_value=1, colormap='bone'), n_iter)
 
         # record loss and EPE
         losses.update(loss.data[0], args.batch_size)
@@ -287,7 +293,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
 
         with open(args.save_path/args.log_full, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow([loss.data[0], loss_1.data[0], loss_2.data[0], loss_3.data[0]])
+            writer.writerow([loss.data[0], loss_1.data[0], loss_2.data[0] if w2 > 0 else 0, loss_3.data[0]])
         logger.train_bar.update(i)
         if i % args.print_freq == 0:
             logger.train_writer.write('Train: Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
@@ -331,7 +337,10 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         explainability_mask, pose = pose_exp_net(tgt_img_var, ref_imgs_var)
 
         loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
-        loss_2 = explainability_loss(explainability_mask)
+        if w2 > 0:
+            loss_2 = explainability_loss(explainability_mask)
+        else:
+            loss_2 = 0
         loss_3 = smooth_loss(disp)
 
         if log_outputs and i%100 == 0 and i/100 < len(output_writers):  # log first output of every 100 batch
@@ -341,14 +350,15 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
                     output_writers[index].add_image('val Input {}'.format(j), tensor2array(tgt_img[0]), 0)
                     output_writers[index].add_image('val Input {}'.format(j), tensor2array(ref[0]), 1)
 
-            output_writers[index].add_image('val Dispnet Output', tensor2array(disp.data[0].cpu(), max_value=10, colormap='bone'), epoch)
+            output_writers[index].add_image('val Dispnet Output', tensor2array(disp.data[0].cpu(), max_value=None, colormap='bone'), epoch)
             output_writers[index].add_image('val Depth Output Normalized', tensor2array(1./disp.data[0].cpu(), max_value=None), epoch)
             # log warped images along with explainability mask
             for j,ref in enumerate(ref_imgs_var):
                 ref_warped = inverse_warp(ref[:1], depth[:1,0], pose[:1,j], intrinsics_var[:1], intrinsics_inv_var[:1])[0]
                 output_writers[index].add_image('val Warped Outputs {}'.format(j), tensor2array(ref_warped.data.cpu()), epoch)
                 output_writers[index].add_image('val Diff Outputs {}'.format(j), tensor2array(0.5*(tgt_img_var[0] - ref_warped).abs().data.cpu()), epoch)
-                output_writers[index].add_image('val Exp mask Outputs {}'.format(j), tensor2array(explainability_mask[0,j].data.cpu(), max_value=1, colormap='bone'), epoch)
+                if explainability_mask is not None:
+                    output_writers[index].add_image('val Exp mask Outputs {}'.format(j), tensor2array(explainability_mask[0,j].data.cpu(), max_value=1, colormap='bone'), epoch)
 
         if log_outputs and i<len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
@@ -358,7 +368,8 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
         losses.update(loss.data[0])
         losses1.update(loss_1.data[0])
-        losses2.update(loss_2.data[0])
+        if w2 >0:
+            losses2.update(loss_2.data[0])
 
         # measure elapsed time
         batch_time.update(time.time() - end)
