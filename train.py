@@ -260,8 +260,8 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
             train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
 
             for k,scaled_depth in enumerate(depth):
-                train_writer.add_image('train Dispnet Output {}'.format(k), tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'), n_iter)
-                train_writer.add_image('train Depth Output Normalized {}'.format(k), tensor2array(1/disparities[k].data[0].cpu(), max_value=None), n_iter)
+                train_writer.add_image('train Dispnet Output Normalized {}'.format(k), tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'), n_iter)
+                train_writer.add_image('train Depth Output {}'.format(k), tensor2array(1/disparities[k].data[0].cpu(), max_value=10), n_iter)
                 b, _, h, w = scaled_depth.size()
                 downscale = tgt_img_var.size(2)/h
 
@@ -350,8 +350,8 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
                     output_writers[index].add_image('val Input {}'.format(j), tensor2array(tgt_img[0]), 0)
                     output_writers[index].add_image('val Input {}'.format(j), tensor2array(ref[0]), 1)
 
-            output_writers[index].add_image('val Dispnet Output', tensor2array(disp.data[0].cpu(), max_value=None, colormap='bone'), epoch)
-            output_writers[index].add_image('val Depth Output Normalized', tensor2array(1./disp.data[0].cpu(), max_value=None), epoch)
+            output_writers[index].add_image('val Dispnet Output Normalized', tensor2array(disp.data[0].cpu(), max_value=None, colormap='bone'), epoch)
+            output_writers[index].add_image('val Depth Output', tensor2array(1./disp.data[0].cpu(), max_value=10), epoch)
             # log warped images along with explainability mask
             for j,ref in enumerate(ref_imgs_var):
                 ref_warped = inverse_warp(ref[:1], depth[:1,0], pose[:1,j], intrinsics_var[:1], intrinsics_inv_var[:1])[0]
