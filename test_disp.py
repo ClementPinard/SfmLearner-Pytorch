@@ -60,10 +60,9 @@ def main():
     output_dir.makedirs_p()
 
     print('{} files to test'.format(len(test_files)))
-    errors = np.zeros((7, len(test_files)), np.float32)
+    errors = np.zeros((2, 7, len(test_files)), np.float32)
 
     for j, sample in enumerate(tqdm(framework)):
-
         tgt_img = sample['tgt']
 
         ref_imgs = sample['ref']
@@ -86,15 +85,15 @@ def main():
             img = ((img/255 -0.5)/0.2).cuda()
             ref_imgs_var.append(Variable(img, volatile=True))
 
-        pred_depth = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
+        pred_disp = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
 
         gt_depth = sample['gt_depth']
-        pred_depth = pred_depth.clip(args.min_depth, args.max_depth)
-        pred_depth_zoomed = zoom(pred_depth, (gt_depth.shape[0]/pred_depth.shape[0],gt_depth.shape[1]/pred_depth.shape[1]))
+
+        pred_depth = 1/pred_disp
+        pred_depth_zoomed = zoom(pred_depth, (gt_depth.shape[0]/pred_depth.shape[0],gt_depth.shape[1]/pred_depth.shape[1])).clip(args.min_depth, args.max_depth)
         if sample['mask'] is not None:
             pred_depth_zoomed = pred_depth_zoomed[sample['mask']]
             gt_depth = gt_depth[sample['mask']]
-
         if seq_length > 0:
             _, poses = pose_net(tgt_img_var, ref_imgs_var)
             displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy() # shape [1 - seq_length]
@@ -104,15 +103,21 @@ def main():
             scale_factor = np.mean(scale_factors) if len(scale_factors) > 0 else 0
             if len(scale_factors) == 0:
                 print('not good ! ', sample['path'], sample['displacements'])
-        else:
-            scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)
-        errors[:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
+            errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
+        
+        scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)
+        errors[1,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
-    mean_errors = errors.mean(1)
+    mean_errors = errors.mean(2)
     error_names = ['abs_rel','sq_rel','rms','log_rms','a1','a2','a3']
-    print(errors)
+    if args.pretrained_posenet:
+        print("Results with scale factor determined by PoseNet : ")
+        print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
+        print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[0]))
+
+    print("Results with scale factor determined by GT/prediction ratio (like the original paper) : ")
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
-    print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors))
+    print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[1]))
 
 def compute_errors(gt, pred):
     thresh = np.maximum((gt / pred), (pred / gt))
