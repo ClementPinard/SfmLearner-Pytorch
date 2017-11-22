@@ -12,7 +12,8 @@ from models import DispNetS, PoseExpNet
 from utils import tensor2array
 
 
-parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth')
+parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--pretrained-dispnet", required=True, type=str, help="pretrained DispNet path")
 parser.add_argument("--pretrained-posenet", default=None, type=str, help="pretrained PoseNet path (for scale factor)")
 parser.add_argument("--img-height", default=128, type=int, help="Image height")
@@ -26,6 +27,7 @@ parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list
 parser.add_argument("--output-dir", default='output', type=str, help="Output directory")
 
 parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI'])
+parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 
 def main():
     args = parser.parse_args()
