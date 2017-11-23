@@ -1,17 +1,17 @@
 from __future__ import division
 import json
-import os
 import numpy as np
 import scipy.misc
 from path import Path
 from tqdm import tqdm
 
+
 class cityscapes_loader(object):
-    def __init__(self, 
+    def __init__(self,
                  dataset_dir,
                  split='train',
-                 crop_bottom=True, # Get rid of the car logo
-                 img_height=171, 
+                 crop_bottom=True,  # Get rid of the car logo
+                 img_height=171,
                  img_width=416):
         self.dataset_dir = Path(dataset_dir)
         self.split = split
@@ -22,7 +22,7 @@ class cityscapes_loader(object):
         self.min_speed = 2
         self.scenes = (self.dataset_dir/'leftImg8bit_sequence'/split).dirs()
         print('Total scenes collected: {}'.format(len(self.scenes)))
-        
+
     def collect_scenes(self, city):
         img_files = sorted(city.files('*.png'))
         scenes = {}
@@ -39,13 +39,13 @@ class cityscapes_loader(object):
             previous = None
             connex_scenes[scene_id] = []
             for id in scenes[scene_id]:
-                if previous == None or int(id) - int(previous) > 1:
+                if previous is None or int(id) - int(previous) > 1:
                     current_list = []
                     connex_scenes[scene_id].append(current_list)
                 current_list.append(id)
                 previous = id
 
-        #create scene data dicts, and subsample scene every two frames
+        # create scene data dicts, and subsample scene every two frames
         for scene_id in connex_scenes.keys():
             intrinsics = self.load_intrinsics(city, scene_id)
             for subscene in connex_scenes[scene_id]:
@@ -70,8 +70,8 @@ class cityscapes_loader(object):
         camera_file = camera_folder.files('{}_{}_*_camera.json'.format(city_name, scene_id))[0]
         frame_id = camera_file.split('_')[2]
         frame_path = city/'{}_{}_{}_leftImg8bit.png'.format(city_name, scene_id, frame_id)
-        
-        with open(camera_file, 'r') as f: 
+
+        with open(camera_file, 'r') as f:
             camera = json.load(f)
         fx = camera['intrinsic']['fx']
         fy = camera['intrinsic']['fy']
@@ -94,10 +94,9 @@ class cityscapes_loader(object):
         city_name = city.basename()
         vehicle_folder = self.dataset_dir/'vehicle_sequence'/self.split/city_name
         vehicle_file = vehicle_folder/'{}_{}_{}_vehicle.json'.format(city_name, scene_id, frame_id)
-        with open(vehicle_file, 'r') as f: 
+        with open(vehicle_file, 'r') as f:
             vehicle = json.load(f)
         return vehicle['speed']
-        
 
     def get_scene_imgs(self, scene_data):
         cum_speed = np.zeros(3)
@@ -108,13 +107,11 @@ class cityscapes_loader(object):
             if speed_mag > self.min_speed:
                 yield self.load_image(scene_data['city'], scene_data['scene_id'], frame_id), frame_id
                 cum_speed *= 0
-                
-
 
     def load_image(self, city, scene_id, frame_id):
         img_file = city/'{}_{}_{}_leftImg8bit.png'.format(city.basename(),
-                                                         scene_id,
-                                                         frame_id)
+                                                          scene_id,
+                                                          frame_id)
         if not img_file.isfile():
             return None
         img = scipy.misc.imread(img_file)

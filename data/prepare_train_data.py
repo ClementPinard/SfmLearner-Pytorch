@@ -53,9 +53,9 @@ def main():
     if args.dataset_format == 'kitti':
         from kitti_raw_loader import KittiRawLoader
         data_loader = KittiRawLoader(args.dataset_dir,
-                                    static_frames_file=args.static_frames,
-                                    img_height=args.height,
-                                    img_width=args.width)
+                                     static_frames_file=args.static_frames,
+                                     img_height=args.height,
+                                     img_width=args.width)
 
     if args.dataset_format == 'cityscapes':
         from cityscapes_loader import cityscapes_loader
@@ -65,8 +65,6 @@ def main():
 
     print('Retrieving frames')
     Parallel(n_jobs=args.num_threads)(delayed(dump_example)(scene) for scene in tqdm(data_loader.scenes))
-    #for scene in tqdm(data_loader.scenes):
-    #    dump_example(scene)
     # Split into train/val
     print('Generating train val lists')
     np.random.seed(8964)
@@ -79,4 +77,6 @@ def main():
                 else:
                     tf.write('{}\n'.format(s.name))
 
-main()
+
+if __name__ == '__main__':
+    main()

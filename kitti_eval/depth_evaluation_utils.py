@@ -1,12 +1,9 @@
-# Mostly based on the code written by Clement Godard: 
+# Mostly based on the code written by Clement Godard:
 # https://github.com/mrharicot/monodepth/blob/master/utils/evaluation_utils.py
 import numpy as np
 # import pandas as pd
-import os
-import cv2
 import datetime
 from collections import Counter
-import pickle
 from path import Path
 from scipy.misc import imread
 from tqdm import tqdm
@@ -16,6 +13,7 @@ width_to_focal[1242] = 721.5377
 width_to_focal[1241] = 718.856
 width_to_focal[1224] = 707.0493
 width_to_focal[1238] = 718.3351
+
 
 class test_framework_KITTI(object):
     def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=80):
@@ -33,13 +31,13 @@ class test_framework_KITTI(object):
                 'displacements': np.array(self.displacements[i]),
                 'mask': generate_mask(depth, self.min_depth, self.max_depth)
                 }
-        
+
     def __len__(self):
         return len(self.img_files)
 
 
 ###############################################################################
-#######################  EIGEN
+#  EIGEN
 
 def read_text_lines(file_path):
     f = open(file_path, 'r')
@@ -47,6 +45,7 @@ def read_text_lines(file_path):
     f.close()
     lines = [l.rstrip() for l in lines]
     return lines
+
 
 def get_displacements(oxts_root, index, shifts):
     with open(oxts_root/'timestamps.txt') as f:
@@ -56,6 +55,7 @@ def get_displacements(oxts_root, index, shifts):
     assert(all(index+shift < len(timestamps) and index+shift >= 0 for shift in shifts)), str([index+shift for shift in shifts])
     return [speed*abs(timestamps[index] - timestamps[index + shift]) for shift in shifts]
 
+
 def read_scene_data(data_root, test_list, seq_length=3):
     data_root = Path(data_root)
     gt_files = []
@@ -63,7 +63,6 @@ def read_scene_data(data_root, test_list, seq_length=3):
     im_files = []
     cams = []
     displacements = []
-    num_probs = 0
     demi_length = (seq_length - 1) // 2
     shift_range = list(range(-demi_length,0)) + list(range(1, demi_length + 1))
 
@@ -89,10 +88,11 @@ def read_scene_data(data_root, test_list, seq_length=3):
             cams.append(int(cam_id[-2:]))
             displacements.append(get_displacements(data_root/date/scene/'oxts', int(index), caped_shift_range))
         else:
-            print('{} missing'.format(data_root + im))
+            print('{} missing'.format(tgt_img_path))
     # print(num_probs, 'files missing')
 
     return calib_dirs, gt_files, im_files, displacements, cams
+
 
 def load_velodyne_points(file_name):
     # adapted from https://github.com/hunse/kitti
@@ -132,9 +132,9 @@ def get_focal_length_baseline(calib_dir, cam=2):
     b3 = P3_rect[0,3] / -P3_rect[0,0]
     baseline = b3-b2
 
-    if cam==2:
+    if cam == 2:
         focal_length = P2_rect[0,0]
-    elif cam==3:
+    elif cam == 3:
         focal_length = P3_rect[0,0]
 
     return focal_length, baseline
@@ -143,6 +143,7 @@ def get_focal_length_baseline(calib_dir, cam=2):
 def sub2ind(matrixSize, rowSub, colSub):
     m, n = matrixSize
     return rowSub * (n-1) + colSub - 1
+
 
 def generate_depth_map(calib_dir, velo_file_name, im_shape, cam=2, vel_depth=False):
     # load calibration files
@@ -185,26 +186,24 @@ def generate_depth_map(calib_dir, velo_file_name, im_shape, cam=2, vel_depth=Fal
     inds = sub2ind(depth.shape, velo_pts_im[:, 1], velo_pts_im[:, 0])
     dupe_inds = [item for item, count in Counter(inds).items() if count > 1]
     for dd in dupe_inds:
-        pts = np.where(inds==dd)[0]
+        pts = np.where(inds == dd)[0]
         x_loc = int(velo_pts_im[pts[0], 0])
         y_loc = int(velo_pts_im[pts[0], 1])
         depth[y_loc, x_loc] = velo_pts_im[pts, 2].min()
-    depth[depth<0] = 0
+    depth[depth < 0] = 0
     return depth
 
+
 def generate_mask(gt_depth, min_depth, max_depth):
-    mask = np.logical_and(gt_depth > min_depth, 
-                              gt_depth < max_depth)
+    mask = np.logical_and(gt_depth > min_depth,
+                          gt_depth < max_depth)
     # crop used by Garg ECCV16 to reprocude Eigen NIPS14 results
     # if used on gt_size 370x1224 produces a crop of [-218, -3, 44, 1180]
     gt_height, gt_width = gt_depth.shape
-    crop = np.array([0.40810811 * gt_height,  0.99189189 * gt_height,   
-                     0.03594771 * gt_width,   0.96405229 * gt_width]).astype(np.int32)
+    crop = np.array([0.40810811 * gt_height, 0.99189189 * gt_height,
+                     0.03594771 * gt_width,  0.96405229 * gt_width]).astype(np.int32)
 
     crop_mask = np.zeros(mask.shape)
     crop_mask[crop[0]:crop[1],crop[2]:crop[3]] = 1
     mask = np.logical_and(mask, crop_mask)
     return mask
-
-
-

@@ -1,10 +1,9 @@
 from __future__ import division
-import shutil
-import numpy as np
 import torch
 from torch.autograd import Variable
 
 pixel_coords = None
+
 
 def set_id_grid(depth):
     global pixel_coords
@@ -15,12 +14,14 @@ def set_id_grid(depth):
 
     pixel_coords = torch.stack((j_range, i_range, ones), dim=1)  # [1, 3, H, W]
 
+
 def check_sizes(input, input_name, expected):
     condition = [input.ndimension() == len(expected)]
     for i,size in enumerate(expected):
         if size.isdigit():
             condition.append(input.size(i) == int(size))
-    assert(all(condition)) , "wrong size for {}, expected {}, got  {}".format(input_name, 'x'.join(expected), list(input.size()))
+    assert(all(condition)), "wrong size for {}, expected {}, got  {}".format(input_name, 'x'.join(expected), list(input.size()))
+
 
 def pixel2cam(depth, intrinsics_inv):
     global pixel_coords
@@ -38,6 +39,7 @@ def pixel2cam(depth, intrinsics_inv):
     cam_coords = intrinsics_inv.bmm(current_pixel_coords).view(b, 3, h, w)
     return cam_coords * depth.unsqueeze(1)
 
+
 def cam2pixel(cam_coords, proj_c2p):
     """Transform coordinates in the camera frame to the pixel frame.
     Args:
@@ -54,12 +56,13 @@ def cam2pixel(cam_coords, proj_c2p):
     Z = pcoords[:, 2].clamp(min=1e-3)
     # Not tested if adding a small number is necessary
     X_norm = 2*(X / Z)/(w-1) - 1  # Normalized, -1 if on extreme left, 1 if on extreme right (x = w-1) [B, H*W]
-    X_norm[(X_norm>1)+(X_norm<-1)] *= 2 # make sure that no point in warped image is a combinaison of im and gray
+    X_norm[(X_norm > 1)+(X_norm < -1)] *= 2  # make sure that no point in warped image is a combinaison of im and gray
     Y_norm = 2*(Y / Z)/(h-1) - 1  # Idem [B, H*W]
-    Y_norm[(Y_norm>1)+(Y_norm<-1)] *= 2
+    Y_norm[(Y_norm > 1)+(Y_norm < -1)] *= 2
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
     return pixel_coords.view(b,h,w,2)
+
 
 def euler2mat(z, y, x):
     """Convert euler angles to rotation matrix.
@@ -80,21 +83,21 @@ def euler2mat(z, y, x):
 
     zeros = z.detach()*0
     ones = zeros.detach()+1
-    zmat = torch.stack([ cosz, -sinz, zeros,
-                         sinz,  cosz, zeros,
+    zmat = torch.stack([cosz, -sinz, zeros,
+                        sinz,  cosz, zeros,
                         zeros, zeros,  ones], dim=1).view(B, 3, 3)
 
     cosy = torch.cos(y)
     siny = torch.sin(y)
 
-    ymat = torch.stack([ cosy, zeros,  siny,
+    ymat = torch.stack([cosy, zeros,  siny,
                         zeros,  ones, zeros,
                         -siny, zeros,  cosy], dim=1).view(B, 3, 3)
 
     cosx = torch.cos(x)
     sinx = torch.sin(x)
 
-    xmat = torch.stack([ ones, zeros, zeros,
+    xmat = torch.stack([ones, zeros, zeros,
                         zeros,  cosx, -sinx,
                         zeros,  sinx,  cosx], dim=1).view(B, 3, 3)
 
@@ -111,14 +114,14 @@ def pose_vec2mat(vec):
     Returns:
         A transformation matrix -- [B, 3, 4]
     """
-    batch_size = vec.size(0)
-    translation = vec[:, :3].unsqueeze(-1) # [B, 3, 1]
+    translation = vec[:, :3].unsqueeze(-1)  # [B, 3, 1]
     rx = vec[:, 3]
     ry = vec[:, 4]
     rz = vec[:, 5]
     rot_mat = euler2mat(rz, ry, rx)  # [B, 3, 3]
     transform_mat = torch.cat([rot_mat, translation], dim=2)  # [B, 3, 4]
     return transform_mat
+
 
 def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv):
     """
@@ -144,9 +147,9 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv):
     batch_size, _, img_height, img_width = img.size()
 
     cam_coords = pixel2cam(depth, intrinsics_inv)  # [B,3,H,W]
-    
+
     pose_mat = pose_vec2mat(pose)  # [B,3,4]
-    
+
     # Get projection matrix for tgt camera frame to source pixel frame
     proj_cam_to_src_pixel = intrinsics.bmm(pose_mat)  # [B, 3, 4]
 

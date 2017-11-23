@@ -68,6 +68,7 @@ parser.add_argument('--log-training-output', action='store_true', help='will log
 best_photo_loss = -1
 n_iter = 0
 
+
 def main():
     global args, best_photo_loss, n_iter
     args = parser.parse_args()
@@ -93,13 +94,13 @@ def main():
 
     # Data loading code
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                     std=[0.5, 0.5, 0.5])
+                                            std=[0.5, 0.5, 0.5])
     input_transform = custom_transforms.Compose([
-                custom_transforms.RandomHorizontalFlip(),
-                custom_transforms.RandomScaleCrop(),
-                custom_transforms.ArrayToTensor(),
-                normalize
-        ])
+        custom_transforms.RandomHorizontalFlip(),
+        custom_transforms.RandomScaleCrop(),
+        custom_transforms.ArrayToTensor(),
+        normalize
+    ])
 
     print("=> fetching scenes in '{}'".format(args.data))
     train_set = SequenceFolder(
@@ -150,7 +151,7 @@ def main():
         disp_net.load_state_dict(weights['state_dict'])
     else:
         disp_net.init_weights()
-        
+
     cudnn.benchmark = True
     disp_net = torch.nn.DataParallel(disp_net)
     pose_exp_net = torch.nn.DataParallel(pose_exp_net)
@@ -159,8 +160,8 @@ def main():
 
     parameters = chain(disp_net.parameters(), pose_exp_net.parameters())
     optimizer = torch.optim.Adam(parameters, args.lr,
-                                betas=(args.momentum, args.beta),
-                                weight_decay=args.weight_decay)
+                                 betas=(args.momentum, args.beta),
+                                 weight_decay=args.weight_decay)
 
     with open(args.save_path/args.log_summary, 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter='\t')
@@ -185,8 +186,8 @@ def main():
         logger.reset_valid_bar()
         valid_photo_loss, valid_exp_loss, valid_total_loss = validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
         logger.valid_writer.write(' * Avg Photo Loss : {:.3f}, Valid Loss : {:.3f}, Total Loss : {:.3f}'.format(valid_photo_loss,
-                                                                                                                     valid_exp_loss,
-                                                                                                                     valid_total_loss))
+                                                                                                                valid_exp_loss,
+                                                                                                                valid_total_loss))
         valid_writer.add_scalar('photometric_error', valid_photo_loss * 4, n_iter)  # Loss is multiplied by 4 because it's only one scale, instead of 4 during training
         valid_writer.add_scalar('explanability_loss', valid_exp_loss * 4, n_iter)
         valid_writer.add_scalar('total_loss', valid_total_loss * 4, n_iter)
@@ -199,11 +200,11 @@ def main():
         best_photo_loss = min(valid_photo_loss, best_photo_loss)
         save_checkpoint(
             args.save_path, {
-            'epoch': epoch + 1,
-            'state_dict': disp_net.module.state_dict()
+                'epoch': epoch + 1,
+                'state_dict': disp_net.module.state_dict()
             }, {
-            'epoch': epoch + 1,
-            'state_dict': pose_exp_net.module.state_dict()
+                'epoch': epoch + 1,
+                'state_dict': pose_exp_net.module.state_dict()
             },
             is_best)
 
@@ -248,14 +249,14 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
 
-        if i>0 and n_iter%args.print_freq == 0:
+        if i > 0 and n_iter % args.print_freq == 0:
             train_writer.add_scalar('photometric_error', loss_1.data[0], n_iter)
             if w2 > 0:
                 train_writer.add_scalar('explanability_loss', loss_2.data[0], n_iter)
             train_writer.add_scalar('disparity_smoothness_loss', loss_3.data[0], n_iter)
             train_writer.add_scalar('total_loss', loss.data[0], n_iter)
 
-        if n_iter%200 ==0 and args.log_training_output:
+        if n_iter % 200 == 0 and args.log_training_output:
 
             train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
 
@@ -270,7 +271,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
 
                 intrinsics_scaled = torch.cat((intrinsics_var[:, 0:2]/downscale, intrinsics_var[:, 2:]), dim=1)
                 intrinsics_scaled_inv = torch.cat((intrinsics_inv_var[:, :, 0:2]*downscale, intrinsics_inv_var[:, :, 2:]), dim=2)
-                
+
                 # log warped images along with explainability mask
                 for j,ref in enumerate(ref_imgs_scaled):
                     ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j], intrinsics_scaled, intrinsics_scaled_inv)[0]
@@ -297,10 +298,11 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
         logger.train_bar.update(i)
         if i % args.print_freq == 0:
             logger.train_writer.write('Train: Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                      'Data {data_time.val:.3f} ({data_time.avg:.3f}) '
-                      'Loss {loss.val:.4f} ({loss.avg:.4f}) '.format(
-                       batch_time=batch_time,
-                       data_time=data_time, loss=losses))
+                                      'Data {data_time.val:.3f} ({data_time.avg:.3f}) '
+                                      'Loss {loss.val:.4f} ({loss.avg:.4f}) '.format(
+                                          batch_time=batch_time,
+                                          data_time=data_time,
+                                          loss=losses))
         if i >= epoch_size - 1:
             break
 
@@ -343,7 +345,7 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
             loss_2 = 0
         loss_3 = smooth_loss(disp)
 
-        if log_outputs and i%100 == 0 and i/100 < len(output_writers):  # log first output of every 100 batch
+        if log_outputs and i % 100 == 0 and i/100 < len(output_writers):  # log first output of every 100 batch
             index = int(i//100)
             if epoch == 0:
                 for j,ref in enumerate(ref_imgs):
@@ -360,15 +362,14 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
                 if explainability_mask is not None:
                     output_writers[index].add_image('val Exp mask Outputs {}'.format(j), tensor2array(explainability_mask[0,j].data.cpu(), max_value=1, colormap='bone'), epoch)
 
-        if log_outputs and i<len(val_loader)-1:
+        if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
             poses[i*step:(i+1)*step] = pose.data.cpu().view(-1,6).numpy()
-
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
         losses.update(loss.data[0])
         losses1.update(loss_1.data[0])
-        if w2 >0:
+        if w2 > 0:
             losses2.update(loss_2.data[0])
 
         # measure elapsed time
@@ -377,10 +378,10 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         logger.valid_bar.update(i)
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: '
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                  'Loss {losses.val:.3f} ({losses.avg:.3f})'.format(
-                   batch_time=batch_time,
-                   losses=losses))
+                                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
+                                      'Loss {losses.val:.3f} ({losses.avg:.3f})'.format(
+                                          batch_time=batch_time,
+                                          losses=losses))
     if log_outputs:
         output_writers[0].add_histogram('val poses_tx', poses[:,0], epoch)
         output_writers[0].add_histogram('val poses_ty', poses[:,1], epoch)
@@ -389,8 +390,8 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         output_writers[0].add_histogram('val poses_ry', poses[:,4], epoch)
         output_writers[0].add_histogram('val poses_rz', poses[:,5], epoch)
 
-
     return losses1.avg, losses2.avg, losses.avg
+
 
 if __name__ == '__main__':
     main()

@@ -73,7 +73,7 @@ class KittiRawLoader(object):
                 if speed_mag > self.min_speed:
                     yield self.load_image(scene_data, i)[0], scene_data['frame_id'][i]
                     cum_speed *= 0
-        else: #from static frame file
+        else:  # from static frame file
             drive = str(scene_data['dir'].name)
             for (i,frame_id) in enumerate(scene_data['frame_id']):
                 if (drive not in self.static_frames.keys()) or (frame_id not in self.static_frames[drive]):

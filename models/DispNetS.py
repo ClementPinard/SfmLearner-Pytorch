@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import math
 
 
 def downsample_conv(in_planes, out_planes, kernel_size=3):
@@ -32,9 +31,11 @@ def upconv(in_planes, out_planes):
         nn.ReLU(inplace=True)
     )
 
+
 def crop_like(input, ref):
     assert(input.size(2) >= ref.size(2) and input.size(3) >= ref.size(3))
     return input[:, :, :ref.size(2), :ref.size(3)]
+
 
 class DispNetS(nn.Module):
 
@@ -45,7 +46,7 @@ class DispNetS(nn.Module):
         self.beta = beta
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
-        self.conv1 = downsample_conv(             3, conv_planes[0], kernel_size=7)
+        self.conv1 = downsample_conv(3,              conv_planes[0], kernel_size=7)
         self.conv2 = downsample_conv(conv_planes[0], conv_planes[1], kernel_size=5)
         self.conv3 = downsample_conv(conv_planes[1], conv_planes[2])
         self.conv4 = downsample_conv(conv_planes[2], conv_planes[3])
@@ -54,21 +55,21 @@ class DispNetS(nn.Module):
         self.conv7 = downsample_conv(conv_planes[5], conv_planes[6])
 
         upconv_planes = [512, 512, 256, 128, 64, 32, 16]
-        self.upconv7 = upconv(   conv_planes[6], upconv_planes[0])
-        self.upconv6 = upconv( upconv_planes[0], upconv_planes[1])
-        self.upconv5 = upconv( upconv_planes[1], upconv_planes[2])
-        self.upconv4 = upconv( upconv_planes[2], upconv_planes[3])
-        self.upconv3 = upconv( upconv_planes[3], upconv_planes[4])
-        self.upconv2 = upconv( upconv_planes[4], upconv_planes[5])
-        self.upconv1 = upconv( upconv_planes[5], upconv_planes[6])
+        self.upconv7 = upconv(conv_planes[6],   upconv_planes[0])
+        self.upconv6 = upconv(upconv_planes[0], upconv_planes[1])
+        self.upconv5 = upconv(upconv_planes[1], upconv_planes[2])
+        self.upconv4 = upconv(upconv_planes[2], upconv_planes[3])
+        self.upconv3 = upconv(upconv_planes[3], upconv_planes[4])
+        self.upconv2 = upconv(upconv_planes[4], upconv_planes[5])
+        self.upconv1 = upconv(upconv_planes[5], upconv_planes[6])
 
-        self.iconv7 = conv( upconv_planes[0] + conv_planes[5], upconv_planes[0])
-        self.iconv6 = conv( upconv_planes[1] + conv_planes[4], upconv_planes[1])
-        self.iconv5 = conv( upconv_planes[2] + conv_planes[3], upconv_planes[2])
-        self.iconv4 = conv( upconv_planes[3] + conv_planes[2], upconv_planes[3])
-        self.iconv3 = conv( 1 + upconv_planes[4] + conv_planes[1], upconv_planes[4])
-        self.iconv2 = conv( 1 + upconv_planes[5] + conv_planes[0], upconv_planes[5])
-        self.iconv1 = conv( 1 + upconv_planes[6], upconv_planes[6])
+        self.iconv7 = conv(upconv_planes[0] + conv_planes[5], upconv_planes[0])
+        self.iconv6 = conv(upconv_planes[1] + conv_planes[4], upconv_planes[1])
+        self.iconv5 = conv(upconv_planes[2] + conv_planes[3], upconv_planes[2])
+        self.iconv4 = conv(upconv_planes[3] + conv_planes[2], upconv_planes[3])
+        self.iconv3 = conv(1 + upconv_planes[4] + conv_planes[1], upconv_planes[4])
+        self.iconv2 = conv(1 + upconv_planes[5] + conv_planes[0], upconv_planes[5])
+        self.iconv1 = conv(1 + upconv_planes[6], upconv_planes[6])
 
         self.predict_disp4 = predict_disp(upconv_planes[3])
         self.predict_disp3 = predict_disp(upconv_planes[4])

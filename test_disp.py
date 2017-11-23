@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import Variable
 
-from scipy.misc import imread, imsave, imresize
+from scipy.misc import imresize
 from scipy.ndimage.interpolation import zoom
 import numpy as np
 from path import Path
@@ -9,7 +9,6 @@ import argparse
 from tqdm import tqdm
 
 from models import DispNetS, PoseExpNet
-from utils import tensor2array
 
 
 parser = argparse.ArgumentParser(description='Script for DispNet testing with corresponding groundTruth',
@@ -28,6 +27,7 @@ parser.add_argument("--output-dir", default='output', type=str, help="Output dir
 
 parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI'])
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
+
 
 def main():
     args = parser.parse_args()
@@ -48,14 +48,13 @@ def main():
         seq_length = int(weights['state_dict']['conv1.0.weight'].size(1)/3)
         pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1).cuda()
         pose_net.load_state_dict(weights['state_dict'])
-        
 
     dataset_dir = Path(args.dataset_dir)
     if args.dataset_list is not None:
         with open(args.dataset_list, 'r') as f:
             test_files = list(f.read().splitlines())
     else:
-        test_files =[file.relpathto(dataset_dir) for file in sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])]
+        test_files = [file.relpathto(dataset_dir) for file in sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])]
 
     framework = test_framework(dataset_dir, test_files, seq_length, args.min_depth, args.max_depth)
     output_dir = Path(args.output_dir)
@@ -70,13 +69,13 @@ def main():
         ref_imgs = sample['ref']
 
         h,w,_ = tgt_img.shape
-        if (not args.no_resize) and (h != args.img_height or w!= args.img_width):
+        if (not args.no_resize) and (h != args.img_height or w != args.img_width):
             tgt_img = imresize(tgt_img, (args.img_height, args.img_width)).astype(np.float32)
             ref_imgs = [imresize(img, (args.img_height, args.img_width)).astype(np.float32) for img in ref_imgs]
-        
+
         tgt_img = np.transpose(tgt_img, (2, 0, 1))
         ref_imgs = [np.transpose(img, (2,0,1)) for img in ref_imgs]
-        
+
         tgt_img = torch.from_numpy(tgt_img).unsqueeze(0)
         tgt_img = ((tgt_img/255 - 0.5)/0.2).cuda()
         tgt_img_var = Variable(tgt_img, volatile=True)
@@ -84,7 +83,7 @@ def main():
         ref_imgs_var = []
         for i, img in enumerate(ref_imgs):
             img = torch.from_numpy(img).unsqueeze(0)
-            img = ((img/255 -0.5)/0.2).cuda()
+            img = ((img/255 - 0.5)/0.2).cuda()
             ref_imgs_var.append(Variable(img, volatile=True))
 
         pred_disp = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
@@ -98,7 +97,7 @@ def main():
             gt_depth = gt_depth[sample['mask']]
         if seq_length > 0:
             _, poses = pose_net(tgt_img_var, ref_imgs_var)
-            displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy() # shape [1 - seq_length]
+            displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy()  # shape [1 - seq_length]
 
             scale_factors = (sample['displacements']/displacements)[sample['displacements'] > 0]
             scale_factors = [s1/s2 for s1, s2 in zip(sample['displacements'], displacements) if s1 > 0]
@@ -106,7 +105,7 @@ def main():
             if len(scale_factors) == 0:
                 print('not good ! ', sample['path'], sample['displacements'])
             errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
-        
+
         scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)
         errors[1,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
@@ -120,6 +119,7 @@ def main():
     print("Results with scale factor determined by GT/prediction ratio (like the original paper) : ")
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[1]))
+
 
 def compute_errors(gt, pred):
     thresh = np.maximum((gt / pred), (pred / gt))
@@ -138,7 +138,7 @@ def compute_errors(gt, pred):
     sq_rel = np.mean(((gt - pred)**2) / gt)
 
     return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
-    
+
 
 if __name__ == '__main__':
     main()

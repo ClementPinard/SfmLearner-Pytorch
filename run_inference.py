@@ -10,8 +10,8 @@ from models import DispNetS
 from utils import tensor2array
 
 parser = argparse.ArgumentParser(description='Inference script for DispNet learned with \
-                                Structure from Motion Learner inference on KITTI and CityScapes Dataset',
-                                formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+                                 Structure from Motion Learner inference on KITTI and CityScapes Dataset',
+                                 formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--output-disp", action='store_true', help="save disparity img")
 parser.add_argument("--output-depth", action='store_true', help="save depth img")
 parser.add_argument("--pretrained", required=True, type=str, help="pretrained DispNet path")
@@ -24,6 +24,7 @@ parser.add_argument("--dataset-dir", default='.', type=str, help="Dataset direct
 parser.add_argument("--output-dir", default='output', type=str, help="Output directory")
 
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
+
 
 def main():
     args = parser.parse_args()
@@ -44,7 +45,7 @@ def main():
         with open(args.dataset_list, 'r') as f:
             test_files = [dataset_dir/file for file in f.read().splitlines()]
     else:
-        test_files =sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])
+        test_files = sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])
 
     print('{} files to test'.format(len(test_files)))
 
@@ -53,24 +54,24 @@ def main():
         img = imread(file).astype(np.float32)
 
         h,w,_ = img.shape
-        if (not args.no_resize) and (h != args.img_height or w!= args.img_width):
+        if (not args.no_resize) and (h != args.img_height or w != args.img_width):
             img = imresize(img, (args.img_height, args.img_width)).astype(np.float32)
         img = np.transpose(img, (2, 0, 1))
-        
+
         tensor_img = torch.from_numpy(img).unsqueeze(0)
         tensor_img = ((tensor_img/255 - 0.5)/0.2).cuda()
         var_img = torch.autograd.Variable(tensor_img, volatile=True)
 
         output = disp_net(var_img).data.cpu()[0]
-        
-        
+
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=10, colormap='bone')).astype(np.uint8)
             imsave(output_dir/'{}_disp{}'.format(file.namebase,file.ext), disp)
         if args.output_depth:
             depth = 1/output
-            depth = (255*tensor2array(depth, max_value=None, colormap='rainbow')).astype(np.uint8)    
+            depth = (255*tensor2array(depth, max_value=1, colormap='rainbow')).astype(np.uint8)
             imsave(output_dir/'{}_depth{}'.format(file.namebase,file.ext), depth)
+
 
 if __name__ == '__main__':
     main()

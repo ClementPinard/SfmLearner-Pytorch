@@ -7,6 +7,7 @@ from scipy.misc import imresize
 '''Set of tranform random routines that takes list of inputs as arguments,
 in order to have random but coherent transformations.'''
 
+
 class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
@@ -39,7 +40,6 @@ class ArrayToTensor(object):
             im = np.transpose(im, (2, 0, 1))
             # handle numpy array
             tensors.append(torch.from_numpy(im).float()/255)
-            
         return tensors, intrinsics
 
 
@@ -60,6 +60,7 @@ class RandomHorizontalFlip(object):
 
 class RandomScaleCrop(object):
     """Randomly zooms images up to 15% and crop them to keep same size as before."""
+
     def __call__(self, images, intrinsics):
         output_intrinsics = np.copy(intrinsics)
         in_h, in_w, _ = images[0].shape

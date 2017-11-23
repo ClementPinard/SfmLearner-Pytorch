@@ -3,8 +3,9 @@ import shutil
 import numpy as np
 import torch
 
+
 def tensor2array(tensor, max_value=255, colormap='rainbow'):
-    if max_value == None:
+    if max_value is None:
         max_value = tensor.max()
     if tensor.ndimension() == 2 or tensor.size(0) == 1:
         try:
@@ -29,6 +30,7 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
         assert(tensor.size(0) == 3)
         array = 0.5 + tensor.numpy().transpose(1, 2, 0)*0.5
     return array
+
 
 def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, filename='checkpoint.pth.tar'):
     file_prefixes = ['dispnet', 'exp_pose']
