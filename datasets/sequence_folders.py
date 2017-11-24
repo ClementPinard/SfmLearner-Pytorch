@@ -12,7 +12,7 @@ def crawl_folders(folders_list, sequence_length):
             intrinsics = np.genfromtxt(folder/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
             imgs = sorted(folder.files('*.jpg'))
             if len(imgs) < sequence_length:
-                break
+                continue
             for i in range(demi_length, len(imgs)-demi_length):
                 sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
                 for j in range(-demi_length, demi_length + 1):
