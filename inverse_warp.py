@@ -56,9 +56,11 @@ def cam2pixel(cam_coords, proj_c2p):
     Z = pcoords[:, 2].clamp(min=1e-3)
     # Not tested if adding a small number is necessary
     X_norm = 2*(X / Z)/(w-1) - 1  # Normalized, -1 if on extreme left, 1 if on extreme right (x = w-1) [B, H*W]
-    X_norm[(X_norm > 1)+(X_norm < -1)] *= 2  # make sure that no point in warped image is a combinaison of im and gray
+    X_mask = ((X_norm > 1)+(X_norm < -1)).detach()
+    X_norm[X_mask] = 2  # make sure that no point in warped image is a combinaison of im and gray
     Y_norm = 2*(Y / Z)/(h-1) - 1  # Idem [B, H*W]
-    Y_norm[(Y_norm > 1)+(Y_norm < -1)] *= 2
+    Y_mask = ((Y_norm > 1)+(Y_norm < -1)).detach()
+    Y_norm[Y_mask] *= 2
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
     return pixel_coords.view(b,h,w,2)

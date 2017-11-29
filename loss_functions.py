@@ -26,10 +26,10 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
             diff = (tgt_img_scaled - ref_img_warped) * out_of_bound
 
             if explainability_mask is not None:
-                diff *= explainability_mask[:,i:i+1].expand_as(diff)
+                diff = diff * explainability_mask[:,i:i+1].expand_as(diff)
 
             reconstruction_loss += diff.abs().mean()
-            assert((reconstruction_loss == reconstruction_loss).cpu().data[0] == 1)
+            assert((reconstruction_loss == reconstruction_loss).data[0] == 1)
 
         return reconstruction_loss
 
