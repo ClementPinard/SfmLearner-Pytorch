@@ -76,8 +76,9 @@ def main():
         from datasets.stacked_sequence_folders import SequenceFolder
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
-    save_path = Path('{}epochs{},b{},lr{},p{},m{},s{}'.format(
-        args.epochs, ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '', args.batch_size,
+    save_path = Path('{}epochs{},seq{},b{},lr{},p{},m{},s{}'.format(
+        args.epochs, ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '',
+        args.sequence_length, args.batch_size,
         args.lr, args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight))
     timestamp = datetime.datetime.now().strftime("%m-%d-%H:%M")
     args.save_path = 'checkpoints'/save_path/timestamp
@@ -218,7 +219,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
     global args, n_iter
     batch_time = AverageMeter()
     data_time = AverageMeter()
-    losses = AverageMeter()
+    losses = AverageMeter(precision=4)
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
 
     # switch to train mode
@@ -297,26 +298,20 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
             writer.writerow([loss.data[0], loss_1.data[0], loss_2.data[0] if w2 > 0 else 0, loss_3.data[0]])
         logger.train_bar.update(i)
         if i % args.print_freq == 0:
-            logger.train_writer.write('Train: Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                                      'Data {data_time.val:.3f} ({data_time.avg:.3f}) '
-                                      'Loss {loss.val:.4f} ({loss.avg:.4f}) '.format(
-                                          batch_time=batch_time,
-                                          data_time=data_time,
-                                          loss=losses))
+            logger.train_writer.write('Train: Time {} Data {} Loss {}'.format(
+                batch_time, data_time=data_time, loss=losses))
         if i >= epoch_size - 1:
             break
 
         n_iter += 1
 
-    return losses.avg
+    return losses.avg[0]
 
 
 def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
     global args
     batch_time = AverageMeter()
-    losses = AverageMeter()
-    losses1 = AverageMeter()
-    losses2 = AverageMeter()
+    losses = AverageMeter(i=3, precision=4)
     log_outputs = len(output_writers) > 0
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
     poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1),6))
@@ -339,11 +334,12 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         explainability_mask, pose = pose_exp_net(tgt_img_var, ref_imgs_var)
 
         loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
+        loss_1 = loss_1.data[0]
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask)
         else:
             loss_2 = 0
-        loss_3 = smooth_loss(disp)
+        loss_3 = smooth_loss(disp).data[0]
 
         if log_outputs and i % 100 == 0 and i/100 < len(output_writers):  # log first output of every 100 batch
             index = int(i//100)
@@ -367,21 +363,14 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
             poses[i*step:(i+1)*step] = pose.data.cpu().view(-1,6).numpy()
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
-        losses.update(loss.data[0])
-        losses1.update(loss_1.data[0])
-        if w2 > 0:
-            losses2.update(loss_2.data[0])
+        losses.update([loss, loss_1, loss_2])
 
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
         logger.valid_bar.update(i)
         if i % args.print_freq == 0:
-            logger.valid_writer.write('valid: '
-                                      'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
-                                      'Loss {losses.val:.3f} ({losses.avg:.3f})'.format(
-                                          batch_time=batch_time,
-                                          losses=losses))
+            logger.valid_writer.write('valid: Time {} Loss {}'.format(batch_time, losses))
     if log_outputs:
         output_writers[0].add_histogram('val poses_tx', poses[:,0], epoch)
         output_writers[0].add_histogram('val poses_ty', poses[:,1], epoch)
@@ -390,7 +379,7 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         output_writers[0].add_histogram('val poses_ry', poses[:,4], epoch)
         output_writers[0].add_histogram('val poses_rz', poses[:,5], epoch)
 
-    return losses1.avg, losses2.avg, losses.avg
+    return losses.avg
 
 
 if __name__ == '__main__':
