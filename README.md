@@ -26,7 +26,7 @@ This codebase was developed and tested with Pytorch 0.2, CUDA 8.0 and Ubuntu 16.
 or install manually the following packages :
 
 ```
-pytorch 0.2
+pytorch 0.3
 scipy
 argparse
 tensorboard-pytorch
