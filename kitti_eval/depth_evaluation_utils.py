@@ -19,7 +19,7 @@ class test_framework_KITTI(object):
     def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=80):
         self.root = root
         self.min_depth, self.max_depth = min_depth, max_depth
-        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root, test_files)
+        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root, test_files, seq_length)
 
     def __getitem__(self, i):
         tgt = imread(self.img_files[i][0]).astype(np.float32)
