@@ -298,8 +298,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
             writer.writerow([loss.data[0], loss_1.data[0], loss_2.data[0] if w2 > 0 else 0, loss_3.data[0]])
         logger.train_bar.update(i)
         if i % args.print_freq == 0:
-            logger.train_writer.write('Train: Time {} Data {} Loss {}'.format(
-                batch_time, data_time=data_time, loss=losses))
+            logger.train_writer.write('Train: Time {} Data {} Loss {}'.format(batch_time, data_time, losses))
         if i >= epoch_size - 1:
             break
 
@@ -336,7 +335,7 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
         loss_1 = loss_1.data[0]
         if w2 > 0:
-            loss_2 = explainability_loss(explainability_mask)
+            loss_2 = explainability_loss(explainability_mask).data[0]
         else:
             loss_2 = 0
         loss_3 = smooth_loss(disp).data[0]
