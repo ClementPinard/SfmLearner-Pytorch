@@ -46,8 +46,8 @@ def main():
     else:
         weights = torch.load(args.pretrained_posenet)
         seq_length = int(weights['state_dict']['conv1.0.weight'].size(1)/3)
-        pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1).cuda()
-        pose_net.load_state_dict(weights['state_dict'])
+        pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1, output_exp=False).cuda()
+        pose_net.load_state_dict(weights['state_dict'], strict=False)
 
     dataset_dir = Path(args.dataset_dir)
     if args.dataset_list is not None:
