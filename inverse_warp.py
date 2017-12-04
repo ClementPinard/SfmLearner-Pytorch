@@ -60,7 +60,7 @@ def cam2pixel(cam_coords, proj_c2p):
     X_norm[X_mask] = 2  # make sure that no point in warped image is a combinaison of im and gray
     Y_norm = 2*(Y / Z)/(h-1) - 1  # Idem [B, H*W]
     Y_mask = ((Y_norm > 1)+(Y_norm < -1)).detach()
-    Y_norm[Y_mask] *= 2
+    Y_norm[Y_mask] = 2
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
     return pixel_coords.view(b,h,w,2)
