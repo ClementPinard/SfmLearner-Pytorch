@@ -65,11 +65,11 @@ def main():
         output = disp_net(var_img).data.cpu()[0]
 
         if args.output_disp:
-            disp = (255*tensor2array(output, max_value=10, colormap='bone')).astype(np.uint8)
+            disp = (255*tensor2array(output, max_value=None, colormap='bone')).astype(np.uint8)
             imsave(output_dir/'{}_disp{}'.format(file.namebase,file.ext), disp)
         if args.output_depth:
             depth = 1/output
-            depth = (255*tensor2array(depth, max_value=1, colormap='rainbow')).astype(np.uint8)
+            depth = (255*tensor2array(depth, max_value=10, colormap='rainbow')).astype(np.uint8)
             imsave(output_dir/'{}_depth{}'.format(file.namebase,file.ext), depth)
 
 
