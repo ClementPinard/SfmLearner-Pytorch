@@ -185,7 +185,7 @@ def main():
 
         # evaluate on validation set
         logger.reset_valid_bar()
-        valid_photo_loss, valid_exp_loss, valid_total_loss = validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
+        valid_total_loss, valid_photo_loss, valid_exp_loss = validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
         logger.valid_writer.write(' * Avg Photo Loss : {:.3f}, Valid Loss : {:.3f}, Total Loss : {:.3f}'.format(valid_photo_loss,
                                                                                                                 valid_exp_loss,
                                                                                                                 valid_total_loss))
