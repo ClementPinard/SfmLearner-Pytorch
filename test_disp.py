@@ -23,7 +23,7 @@ parser.add_argument("--max-depth", default=80)
 
 parser.add_argument("--dataset-dir", default='.', type=str, help="Dataset directory")
 parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list file")
-parser.add_argument("--output-dir", default='output', type=str, help="Output directory")
+parser.add_argument("--output-dir", default=None, type=str, help="Output directory for saving predictions in a big 3D numpy file")
 
 parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI'])
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
@@ -57,11 +57,12 @@ def main():
         test_files = [file.relpathto(dataset_dir) for file in sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])]
 
     framework = test_framework(dataset_dir, test_files, seq_length, args.min_depth, args.max_depth)
-    output_dir = Path(args.output_dir)
-    output_dir.makedirs_p()
 
     print('{} files to test'.format(len(test_files)))
     errors = np.zeros((2, 7, len(test_files)), np.float32)
+    if args.output_dir is not None:
+        output_dir = Path(args.output_dir)
+        output_dir.makedirs_p()
 
     for j, sample in enumerate(tqdm(framework)):
         tgt_img = sample['tgt']
@@ -88,6 +89,11 @@ def main():
 
         pred_disp = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
 
+        if args.output_dir is not None:
+            if j == 0:
+                predictions = np.zeros((len(test_files), *pred_disp.shape))
+            predictions[j] = pred_disp
+
         gt_depth = sample['gt_depth']
 
         pred_depth = 1/pred_disp
@@ -99,7 +105,6 @@ def main():
             _, poses = pose_net(tgt_img_var, ref_imgs_var)
             displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy()  # shape [1 - seq_length]
 
-            scale_factors = (sample['displacements']/displacements)[sample['displacements'] > 0]
             scale_factors = [s1/s2 for s1, s2 in zip(sample['displacements'], displacements) if s1 > 0]
             scale_factor = np.mean(scale_factors) if len(scale_factors) > 0 else 0
             if len(scale_factors) == 0:
@@ -119,6 +124,9 @@ def main():
     print("Results with scale factor determined by GT/prediction ratio (like the original paper) : ")
     print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
     print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[1]))
+
+    if args.output_dir is not None:
+        np.save(output_dir/'predictions.npy', predictions)
 
 
 def compute_errors(gt, pred):
