@@ -314,6 +314,7 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
     log_outputs = len(output_writers) > 0
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
     poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1),6))
+    disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
 
     # switch to evaluate mode
     disp_net.eval()
@@ -359,7 +360,12 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
-            poses[i*step:(i+1)*step] = pose.data.cpu().view(-1,6).numpy()
+            poses[i * step:(i+1) * step] = pose.data.cpu().view(-1,6).numpy()
+            step = args.batch_size * 3
+            disp_unraveled = disp.data.cpu().view(args.batch_size, -1)
+            disp_values[i * step:(i+1) * step] = torch.cat([disp_unraveled.min(-1)[0],
+                                                            disp_unraveled.median(-1)[0],
+                                                            disp_unraveled.max(-1)[0]]).numpy()
 
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
         losses.update([loss, loss_1, loss_2])
@@ -377,6 +383,7 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         output_writers[0].add_histogram('val poses_rx', poses[:,3], epoch)
         output_writers[0].add_histogram('val poses_ry', poses[:,4], epoch)
         output_writers[0].add_histogram('val poses_rz', poses[:,5], epoch)
+        output_writers[0].add_histogram('disp_values', disp_values, epoch)
 
     return losses.avg
 
