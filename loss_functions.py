@@ -4,8 +4,8 @@ from torch.autograd import Variable
 from inverse_warp import inverse_warp
 
 
-def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose):
-    def one_scale(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose):
+def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose, rotation_mode='euler', padding_mode='zeros'):
+    def one_scale(depth, explainability_mask):
         assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
         assert(pose.size(1) == len(ref_imgs))
 
@@ -21,7 +21,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
         for i, ref_img in enumerate(ref_imgs_scaled):
             current_pose = pose[:, i]
 
-            ref_img_warped = inverse_warp(ref_img, depth[:,0], current_pose, intrinsics_scaled, intrinsics_scaled_inv)
+            ref_img_warped = inverse_warp(ref_img, depth[:,0], current_pose, intrinsics_scaled, intrinsics_scaled_inv, rotation_mode, padding_mode)
             out_of_bound = 1 - (ref_img_warped == 0).prod(1, keepdim=True).type_as(ref_img_warped)
             diff = (tgt_img_scaled - ref_img_warped) * out_of_bound
 
@@ -40,7 +40,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
 
     loss = 0
     for d, mask in zip(depth, explainability_mask):
-        loss += one_scale(tgt_img, ref_imgs, intrinsics, intrinsics_inv, d, mask, pose)
+        loss += one_scale(d, mask)
     return loss
 
 
@@ -71,5 +71,19 @@ def smooth_loss(pred_disp):
         dx2, dxdy = gradient(dx)
         dydx, dy2 = gradient(dy)
         loss += (dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean())*weight
+        weight /= 2
+    return loss
+
+
+def mean_loss(pred_disp, target_mean=5):
+    if type(pred_disp) not in [tuple, list]:
+        pred_disp = [pred_disp]
+
+    loss = 0
+    weight = 1.
+
+    for scaled_disp in pred_disp:
+
+        loss += weight * (scaled_disp.mean()/target_mean - 1)
         weight /= 2
     return loss

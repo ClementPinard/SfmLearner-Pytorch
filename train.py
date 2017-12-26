@@ -26,9 +26,16 @@ parser = argparse.ArgumentParser(description='Structure from Motion Learner trai
 
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('--dataset-format', default='sequential',
+parser.add_argument('--dataset-format', default='sequential', metavar='STR',
                     help='dataset format, stacked: stacked frames (from original TensorFlow code) \
                     sequential: sequential folders (easier to convert to with a non KITTI/Cityscape dataset')
+parser.add_argument('--sequence-length', type=int, metavar='N', help='sequence length for training', default=3)
+parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], default='euler',
+                    help='rotation mode for PoseExpnet : euler (yaw,pitch,roll) or quaternion (last 3 coefficients)')
+parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], default='zeros',
+                    help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
+                         ' zeros will null gradients outside target image.'
+                         ' border will only null gradients of the coordinate outside (x or y)')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -49,21 +56,21 @@ parser.add_argument('--print-freq', default=10, type=int,
                     metavar='N', help='print frequency')
 parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
                     help='evaluate model on validation set')
-parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None,
+parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, metavar='PATH',
                     help='path to pre-trained dispnet model')
-parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None,
+parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None, metavar='PATH',
                     help='path to pre-trained Exp Pose net model')
 parser.add_argument('--seed', default=0, type=int, help='seed for random functions, and network initialization')
-parser.add_argument('--log-summary', default='progress_log_summary.csv',
+parser.add_argument('--log-summary', default='progress_log_summary.csv', metavar='PATH',
                     help='csv where to save per-epoch train and valid stats')
-parser.add_argument('--log-full', default='progress_log_full.csv',
+parser.add_argument('--log-full', default='progress_log_full.csv', metavar='PATH',
                     help='csv where to save per-gradient descent train stats')
-parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', default=1)
-parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', default=0)
-parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', default=0.1)
-parser.add_argument('--sequence-length', type=int, help='sequence length for training', default=3)
+parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for photometric loss', metavar='W', default=1)
+parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', metavar='W', default=0)
+parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', metavar='W', default=0.1)
 parser.add_argument('--log-output', action='store_true', help='will log dispnet outputs and warped imgs at validation step')
-parser.add_argument('--log-training-output', action='store_true', help='will log dispnet outputs and warped imgs at training for all scales')
+parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
+                    metavar='N', default=0)
 
 best_photo_loss = -1
 n_iter = 0
@@ -76,9 +83,9 @@ def main():
         from datasets.stacked_sequence_folders import SequenceFolder
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
-    save_path = Path('{}epochs{},seq{},b{},lr{},p{},m{},s{}'.format(
+    save_path = Path('{}epochs{},seq{},rot_{},padding_{},b{},lr{},p{},m{},s{}'.format(
         args.epochs, ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '',
-        args.sequence_length, args.batch_size,
+        args.sequence_length, args.rotation_mode, args.padding_mode, args.batch_size,
         args.lr, args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight))
     timestamp = datetime.datetime.now().strftime("%m-%d-%H:%M")
     args.save_path = 'checkpoints'/save_path/timestamp
@@ -257,13 +264,17 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
             train_writer.add_scalar('disparity_smoothness_loss', loss_3.data[0], n_iter)
             train_writer.add_scalar('total_loss', loss.data[0], n_iter)
 
-        if n_iter % 200 == 0 and args.log_training_output:
+        if args.training_output_freq > 0 and n_iter % args.training_output_freq == 0:
 
             train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
 
             for k,scaled_depth in enumerate(depth):
-                train_writer.add_image('train Dispnet Output Normalized {}'.format(k), tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'), n_iter)
-                train_writer.add_image('train Depth Output {}'.format(k), tensor2array(1/disparities[k].data[0].cpu(), max_value=10), n_iter)
+                train_writer.add_image('train Dispnet Output Normalized {}'.format(k),
+                                       tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'),
+                                       n_iter)
+                train_writer.add_image('train Depth Output {}'.format(k),
+                                       tensor2array(1/disparities[k].data[0].cpu(), max_value=10),
+                                       n_iter)
                 b, _, h, w = scaled_depth.size()
                 downscale = tgt_img_var.size(2)/h
 
@@ -275,7 +286,10 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
 
                 # log warped images along with explainability mask
                 for j,ref in enumerate(ref_imgs_scaled):
-                    ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j], intrinsics_scaled, intrinsics_scaled_inv)[0]
+                    ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j],
+                                              intrinsics_scaled, intrinsics_scaled_inv,
+                                              rotation_mode=args.rotation_mode,
+                                              padding_mode=args.padding_mode)[0]
                     train_writer.add_image('train Warped Outputs {} {}'.format(k,j), tensor2array(ref_warped.data.cpu()), n_iter)
                     train_writer.add_image('train Diff Outputs {} {}'.format(k,j), tensor2array(0.5*(tgt_img_scaled[0] - ref_warped).abs().data.cpu()), n_iter)
                     if explainability_mask[k] is not None:
@@ -333,7 +347,10 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         depth = 1/disp
         explainability_mask, pose = pose_exp_net(tgt_img_var, ref_imgs_var)
 
-        loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
+        loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var,
+                                                 intrinsics_var, intrinsics_inv_var,
+                                                 depth, explainability_mask,
+                                                 pose, args.rotation_mode, args.padding_mode)
         loss_1 = loss_1.data[0]
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask).data[0]
@@ -352,7 +369,11 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
             output_writers[index].add_image('val Depth Output', tensor2array(1./disp.data[0].cpu(), max_value=10), epoch)
             # log warped images along with explainability mask
             for j,ref in enumerate(ref_imgs_var):
-                ref_warped = inverse_warp(ref[:1], depth[:1,0], pose[:1,j], intrinsics_var[:1], intrinsics_inv_var[:1])[0]
+                ref_warped = inverse_warp(ref[:1], depth[:1,0], pose[:1,j],
+                                          intrinsics_var[:1], intrinsics_inv_var[:1],
+                                          rotation_mode=args.rotation_mode,
+                                          padding_mode=args.padding_mode)[0]
+
                 output_writers[index].add_image('val Warped Outputs {}'.format(j), tensor2array(ref_warped.data.cpu()), epoch)
                 output_writers[index].add_image('val Diff Outputs {}'.format(j), tensor2array(0.5*(tgt_img_var[0] - ref_warped).abs().data.cpu()), epoch)
                 if explainability_mask is not None:
@@ -380,9 +401,13 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         output_writers[0].add_histogram('val poses_tx', poses[:,0], epoch)
         output_writers[0].add_histogram('val poses_ty', poses[:,1], epoch)
         output_writers[0].add_histogram('val poses_tz', poses[:,2], epoch)
-        output_writers[0].add_histogram('val poses_rx', poses[:,3], epoch)
-        output_writers[0].add_histogram('val poses_ry', poses[:,4], epoch)
-        output_writers[0].add_histogram('val poses_rz', poses[:,5], epoch)
+        if args.rotation_mode == 'euler':
+            rot_coeffs = ['rx', 'ry', 'rz']
+        elif args.rotation_mode == 'quat':
+            rot_coeffs = ['qx', 'qy', 'qz']
+        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[0]), poses[:,3], epoch)
+        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[1]), poses[:,4], epoch)
+        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[2]), poses[:,5], epoch)
         output_writers[0].add_histogram('disp_values', disp_values, epoch)
 
     return losses.avg
