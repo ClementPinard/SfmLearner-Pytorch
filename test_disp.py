@@ -25,7 +25,7 @@ parser.add_argument("--dataset-dir", default='.', type=str, help="Dataset direct
 parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list file")
 parser.add_argument("--output-dir", default=None, type=str, help="Output directory for saving predictions in a big 3D numpy file")
 
-parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI'])
+parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI', 'stillbox'])
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 
 
@@ -33,6 +33,8 @@ def main():
     args = parser.parse_args()
     if args.gt_type == 'KITTI':
         from kitti_eval.depth_evaluation_utils import test_framework_KITTI as test_framework
+    elif args.gt_type == 'stillbox':
+        from stillbox_eval.depth_evaluation_utils import test_framework_stillbox as test_framework
 
     disp_net = DispNetS().cuda()
     weights = torch.load(args.pretrained_dispnet)
@@ -78,13 +80,13 @@ def main():
         ref_imgs = [np.transpose(img, (2,0,1)) for img in ref_imgs]
 
         tgt_img = torch.from_numpy(tgt_img).unsqueeze(0)
-        tgt_img = ((tgt_img/255 - 0.5)/0.2).cuda()
+        tgt_img = ((tgt_img/255 - 0.5)/0.5).cuda()
         tgt_img_var = Variable(tgt_img, volatile=True)
 
         ref_imgs_var = []
         for i, img in enumerate(ref_imgs):
             img = torch.from_numpy(img).unsqueeze(0)
-            img = ((img/255 - 0.5)/0.2).cuda()
+            img = ((img/255 - 0.5)/0.5).cuda()
             ref_imgs_var.append(Variable(img, volatile=True))
 
         pred_disp = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
@@ -92,7 +94,7 @@ def main():
         if args.output_dir is not None:
             if j == 0:
                 predictions = np.zeros((len(test_files), *pred_disp.shape))
-            predictions[j] = pred_disp
+            predictions[j] = 1/pred_disp
 
         gt_depth = sample['gt_depth']
 
@@ -101,6 +103,7 @@ def main():
         if sample['mask'] is not None:
             pred_depth_zoomed = pred_depth_zoomed[sample['mask']]
             gt_depth = gt_depth[sample['mask']]
+
         if seq_length > 0:
             _, poses = pose_net(tgt_img_var, ref_imgs_var)
             displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy()  # shape [1 - seq_length]

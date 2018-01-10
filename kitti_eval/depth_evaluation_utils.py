@@ -16,10 +16,10 @@ width_to_focal[1238] = 718.3351
 
 
 class test_framework_KITTI(object):
-    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=80):
+    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=100, step=1):
         self.root = root
         self.min_depth, self.max_depth = min_depth, max_depth
-        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root, test_files, seq_length)
+        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root, test_files, seq_length, step)
 
     def __getitem__(self, i):
         tgt = imread(self.img_files[i][0]).astype(np.float32)
@@ -56,7 +56,7 @@ def get_displacements(oxts_root, index, shifts):
     return [speed*abs(timestamps[index] - timestamps[index + shift]) for shift in shifts]
 
 
-def read_scene_data(data_root, test_list, seq_length=3):
+def read_scene_data(data_root, test_list, seq_length=3, step=1):
     data_root = Path(data_root)
     gt_files = []
     calib_dirs = []
@@ -64,7 +64,7 @@ def read_scene_data(data_root, test_list, seq_length=3):
     cams = []
     displacements = []
     demi_length = (seq_length - 1) // 2
-    shift_range = list(range(-demi_length,0)) + list(range(1, demi_length + 1))
+    shift_range = [step*i for i in list(range(-demi_length,0)) + list(range(1, demi_length + 1))]
 
     print('getting test metadata ... ')
     for sample in tqdm(test_list):
@@ -145,7 +145,7 @@ def sub2ind(matrixSize, rowSub, colSub):
     return rowSub * (n-1) + colSub - 1
 
 
-def generate_depth_map(calib_dir, velo_file_name, im_shape, cam=2, vel_depth=False):
+def generate_depth_map(calib_dir, velo_file_name, im_shape, cam=2):
     # load calibration files
     cam2cam = read_calib_file(calib_dir/'calib_cam_to_cam.txt')
     velo2cam = read_calib_file(calib_dir/'calib_velo_to_cam.txt')
@@ -165,10 +165,7 @@ def generate_depth_map(calib_dir, velo_file_name, im_shape, cam=2, vel_depth=Fal
 
     # project the points to the camera
     velo_pts_im = np.dot(P_velo2im, velo.T).T
-    velo_pts_im[:, :2] = velo_pts_im[:,:2] / velo_pts_im[:,2][..., np.newaxis]
-
-    if vel_depth:
-        velo_pts_im[:, 2] = velo[:, 0]
+    velo_pts_im[:, :2] = velo_pts_im[:,:2] / velo_pts_im[:,-1:]
 
     # check if in bounds
     # use minus 1 to get the exact same value as KITTI matlab code
