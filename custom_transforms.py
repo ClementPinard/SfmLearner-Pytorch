@@ -47,6 +47,7 @@ class RandomHorizontalFlip(object):
     """Randomly horizontally flips the given numpy array with a probability of 0.5"""
 
     def __call__(self, images, intrinsics):
+        assert intrinsics is not None
         if random.random() < 0.5:
             output_intrinsics = np.copy(intrinsics)
             output_images = [np.copy(np.fliplr(im)) for im in images]
@@ -62,16 +63,22 @@ class RandomScaleCrop(object):
     """Randomly zooms images up to 15% and crop them to keep same size as before."""
 
     def __call__(self, images, intrinsics):
+        assert intrinsics is not None
         output_intrinsics = np.copy(intrinsics)
+
         in_h, in_w, _ = images[0].shape
         x_scaling, y_scaling = np.random.uniform(1,1.15,2)
         scaled_h, scaled_w = int(in_h * y_scaling), int(in_w * x_scaling)
+
         output_intrinsics[0] *= x_scaling
         output_intrinsics[1] *= y_scaling
         scaled_images = [imresize(im, (scaled_h, scaled_w)) for im in images]
+
         offset_y = np.random.randint(scaled_h - in_h + 1)
         offset_x = np.random.randint(scaled_w - in_w + 1)
         cropped_images = [im[offset_y:offset_y + in_h, offset_x:offset_x + in_w] for im in scaled_images]
+
         output_intrinsics[0,2] -= offset_x
         output_intrinsics[1,2] -= offset_y
+
         return cropped_images, output_intrinsics

@@ -15,7 +15,7 @@ import models
 from utils import tensor2array, save_checkpoint
 from inverse_warp import inverse_warp
 
-from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
+from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss, compute_errors
 from logger import TermLogger, AverageMeter
 from path import Path
 from itertools import chain
@@ -36,6 +36,8 @@ parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], def
                     help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
                          ' zeros will null gradients outside target image.'
                          ' border will only null gradients of the coordinate outside (x or y)')
+parser.add_argument('--with-gt', action='store_true', help='use ground truth for validation. \
+                    You need to store it in npy 2D arrays see data/kitti_raw_loader.py for an example')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -72,12 +74,12 @@ parser.add_argument('--log-output', action='store_true', help='will log dispnet 
 parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
 
-best_photo_loss = -1
+best_error = -1
 n_iter = 0
 
 
 def main():
-    global args, best_photo_loss, n_iter
+    global args, best_error, n_iter
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -93,8 +95,7 @@ def main():
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
 
-    train_writer = SummaryWriter(args.save_path/'train')
-    valid_writer = SummaryWriter(args.save_path/'valid')
+    training_writer = SummaryWriter(args.save_path)
     output_writers = []
     if args.log_output:
         for i in range(3):
@@ -103,28 +104,39 @@ def main():
     # Data loading code
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                             std=[0.5, 0.5, 0.5])
-    input_transform = custom_transforms.Compose([
+    train_transform = custom_transforms.Compose([
         custom_transforms.RandomHorizontalFlip(),
         custom_transforms.RandomScaleCrop(),
         custom_transforms.ArrayToTensor(),
         normalize
     ])
 
+    valid_transform = custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize])
+
     print("=> fetching scenes in '{}'".format(args.data))
     train_set = SequenceFolder(
         args.data,
-        transform=input_transform,
+        transform=train_transform,
         seed=args.seed,
         train=True,
         sequence_length=args.sequence_length
     )
-    val_set = SequenceFolder(
-        args.data,
-        transform=custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize]),
-        seed=args.seed,
-        train=False,
-        sequence_length=args.sequence_length
-    )
+
+    # if no Groundtruth is avalaible, Validation set is the same type as training set to measure photometric loss from warping
+    if args.with_gt:
+        from datasets.validation_folders import ValidationSet
+        val_set = ValidationSet(
+            args.data,
+            transform=valid_transform
+        )
+    else:
+        val_set = SequenceFolder(
+            args.data,
+            transform=valid_transform,
+            seed=args.seed,
+            train=False,
+            sequence_length=args.sequence_length,
+        )
     print('{} samples found in {} train scenes'.format(len(train_set), len(train_set.scenes)))
     print('{} samples found in {} valid scenes'.format(len(val_set), len(val_set.scenes)))
     train_loader = torch.utils.data.DataLoader(
@@ -187,25 +199,29 @@ def main():
 
         # train for one epoch
         logger.reset_train_bar()
-        train_loss = train(train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, train_writer)
+        train_loss = train(train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, training_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         # evaluate on validation set
         logger.reset_valid_bar()
-        valid_total_loss, valid_photo_loss, valid_exp_loss = validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
-        logger.valid_writer.write(' * Avg Photo Loss : {:.3f}, Valid Loss : {:.3f}, Total Loss : {:.3f}'.format(valid_photo_loss,
-                                                                                                                valid_exp_loss,
-                                                                                                                valid_total_loss))
-        valid_writer.add_scalar('photometric_error', valid_photo_loss * 4, n_iter)  # Loss is multiplied by 4 because it's only one scale, instead of 4 during training
-        valid_writer.add_scalar('explanability_loss', valid_exp_loss * 4, n_iter)
-        valid_writer.add_scalar('total_loss', valid_total_loss * 4, n_iter)
+        if args.with_gt:
+            errors, error_names = validate_with_gt(val_loader, disp_net, epoch, logger, output_writers)
+        else:
+            errors, error_names = validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
+        error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
+        logger.valid_writer.write(' * Avg {}'.format(error_string))
 
-        if best_photo_loss < 0:
-            best_photo_loss = valid_photo_loss
+        for error, name in zip(errors, error_names):
+            training_writer.add_scalar(name, error, epoch)
+
+        # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
+        decisive_error = errors[0]
+        if best_error < 0:
+            best_error = decisive_error
 
         # remember lowest error and save checkpoint
-        is_best = valid_photo_loss < best_photo_loss
-        best_photo_loss = min(valid_photo_loss, best_photo_loss)
+        is_best = decisive_error < best_error
+        best_error = min(best_error, decisive_error)
         save_checkpoint(
             args.save_path, {
                 'epoch': epoch + 1,
@@ -218,7 +234,7 @@ def main():
 
         with open(args.save_path/args.log_summary, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow([train_loss, valid_total_loss])
+            writer.writerow([train_loss, decisive_error])
     logger.epoch_bar.finish()
 
 
@@ -321,7 +337,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
     return losses.avg[0]
 
 
-def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
+def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
     global args
     batch_time = AverageMeter()
     losses = AverageMeter(i=3, precision=4)
@@ -410,7 +426,52 @@ def validate(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[
         output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[2]), poses[:,5], epoch)
         output_writers[0].add_histogram('disp_values', disp_values, epoch)
 
-    return losses.avg
+    return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
+
+
+def validate_with_gt(val_loader, disp_net, epoch, logger, output_writers=[]):
+    global args
+    batch_time = AverageMeter()
+    error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
+    errors = AverageMeter(i=len(error_names))
+    log_outputs = len(output_writers) > 0
+
+    # switch to evaluate mode
+    disp_net.eval()
+
+    end = time.time()
+
+    for i, (tgt_img, depth) in enumerate(val_loader):
+        tgt_img_var = Variable(tgt_img.cuda(), volatile=True)
+        depth = depth.cuda()
+
+        # compute output
+        output_disp = disp_net(tgt_img_var)
+        output_depth = 1/output_disp
+
+        if log_outputs and i % 100 == 0 and i/100 < len(output_writers):
+            index = int(i//100)
+            if epoch == 0:
+                output_writers[index].add_image('val Input', tensor2array(tgt_img[0]), 0)
+                depth_to_show = depth[0].cpu()
+                output_writers[index].add_image('val target Depth', tensor2array(depth_to_show, max_value=10), epoch)
+                depth_to_show[depth_to_show == 0] = 1000
+                disp_to_show = (1/depth_to_show).clamp(0,10)
+                output_writers[index].add_image('val target Disparity Normalized', tensor2array(disp_to_show, max_value=None, colormap='bone'), epoch)
+
+            output_writers[index].add_image('val Dispnet Output Normalized', tensor2array(output_disp.data[0].cpu(), max_value=None, colormap='bone'), epoch)
+            output_writers[index].add_image('val Depth Output', tensor2array(output_depth.data[0].cpu(), max_value=10), epoch)
+
+        errors.update(compute_errors(depth, output_depth.data))
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+        logger.valid_bar.update(i)
+        if i % args.print_freq == 0:
+            logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, errors.val[0], errors.avg[0]))
+
+    return errors.avg, error_names
 
 
 if __name__ == '__main__':
