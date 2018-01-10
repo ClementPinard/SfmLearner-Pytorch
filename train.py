@@ -332,6 +332,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
         if i >= epoch_size - 1:
             break
 
+        logger.train_bar.update(i+1)
         n_iter += 1
 
     return losses.avg[0]
@@ -425,7 +426,7 @@ def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, outpu
         output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[1]), poses[:,4], epoch)
         output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[2]), poses[:,5], epoch)
         output_writers[0].add_histogram('disp_values', disp_values, epoch)
-
+    logger.valid_bar.update(len(val_loader))
     return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
 
 
@@ -470,7 +471,7 @@ def validate_with_gt(val_loader, disp_net, epoch, logger, output_writers=[]):
         logger.valid_bar.update(i)
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, errors.val[0], errors.avg[0]))
-
+    logger.valid_bar.update(len(val_loader))
     return errors.avg, error_names
 
 
