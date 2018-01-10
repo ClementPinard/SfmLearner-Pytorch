@@ -45,19 +45,21 @@ It is also advised to have python3 bindings for opencv for tensorboard visualiza
 * That way, training is now significantly faster, running at ~0.14sec per step vs ~0.2s per steps initially (on a single GTX980Ti)
 * In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
 * You can still choose the former stacked frames dataset format.
+* Convergence is now almost as good as original paper with same hyper parameters
+* You can know compare with groud truth for your validation set. It is still possible to validate without, but you know can see that minimizing photometric error is not equivalent to optimizing depth map.
 
 ### Still needed to do
 
-* Pose evaluation code, along with thorough comparison between tensorflow and pytorch version
-* For some reason, original hyperparameters does not seem to make the models converge, some investigations need to be done
+* Pose evaluation code
 
 ## Preparing training data
 Preparation is roughly the same command as in the original code.
 
-For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command
+For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-gt` option will save resized copies of groudtruth to help you setting hyper parameters.
 ```bash
-python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt]
+python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt] [--with-gt]
 ```
+
 
 For [Cityscapes](https://www.cityscapes-dataset.com/), download the following packages: 1) `leftImg8bit_sequence_trainvaltest.zip`, 2) `camera_trainvaltest.zip`. You will probably need to contact the administrators to be able to get it. Then run the following command
 ```bash
@@ -68,7 +70,7 @@ Notice that for Cityscapes the `img_height` is set to 171 because we crop out th
 ## Training
 Once the data are formatted following the above instructions, you should be able to train the model by running the following command
 ```bash
-python3 train.py /path/to/the/formatted/data/ -b4 -m0.2 -s0.1 --epoch-size 3000 --sequence-length 3 --log-output
+python3 train.py /path/to/the/formatted/data/ -b4 -m0.2 -s0.1 --epoch-size 3000 --sequence-length 3 --log-output [--with-gt]
 ```
 You can then start a `tensorboard` session in this folder by
 ```bash
