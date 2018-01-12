@@ -30,7 +30,7 @@ pytorch 0.3
 scipy
 argparse
 tensorboard-pytorch
-tensorboard
+tensorboardX
 blessings
 progressbar2
 path.py

@@ -250,6 +250,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
     pose_exp_net.train()
 
     end = time.time()
+    logger.train_bar.update(0)
 
     for i, (tgt_img, ref_imgs, intrinsics, intrinsics_inv) in enumerate(train_loader):
         # measure data loading time
@@ -326,13 +327,12 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
         with open(args.save_path/args.log_full, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
             writer.writerow([loss.data[0], loss_1.data[0], loss_2.data[0] if w2 > 0 else 0, loss_3.data[0]])
-        logger.train_bar.update(i)
+        logger.train_bar.update(i+1)
         if i % args.print_freq == 0:
             logger.train_writer.write('Train: Time {} Data {} Loss {}'.format(batch_time, data_time, losses))
         if i >= epoch_size - 1:
             break
 
-        logger.train_bar.update(i+1)
         n_iter += 1
 
     return losses.avg[0]
@@ -352,7 +352,7 @@ def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, outpu
     pose_exp_net.eval()
 
     end = time.time()
-
+    logger.valid_bar.update(0)
     for i, (tgt_img, ref_imgs, intrinsics, intrinsics_inv) in enumerate(val_loader):
         tgt_img_var = Variable(tgt_img.cuda(), volatile=True)
         ref_imgs_var = [Variable(img.cuda(), volatile=True) for img in ref_imgs]
@@ -411,7 +411,7 @@ def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, outpu
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
-        logger.valid_bar.update(i)
+        logger.valid_bar.update(i+1)
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: Time {} Loss {}'.format(batch_time, losses))
     if log_outputs:
@@ -441,7 +441,7 @@ def validate_with_gt(val_loader, disp_net, epoch, logger, output_writers=[]):
     disp_net.eval()
 
     end = time.time()
-
+    logger.valid_bar.update(0)
     for i, (tgt_img, depth) in enumerate(val_loader):
         tgt_img_var = Variable(tgt_img.cuda(), volatile=True)
         depth = depth.cuda()
@@ -468,7 +468,7 @@ def validate_with_gt(val_loader, disp_net, epoch, logger, output_writers=[]):
         # measure elapsed time
         batch_time.update(time.time() - end)
         end = time.time()
-        logger.valid_bar.update(i)
+        logger.valid_bar.update(i+1)
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, errors.val[0], errors.avg[0]))
     logger.valid_bar.update(len(val_loader))
