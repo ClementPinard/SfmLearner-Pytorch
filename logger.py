@@ -28,8 +28,9 @@ class TermLogger(object):
         self.reset_train_bar()
         self.reset_valid_bar()
 
-    def reset_train_bar(self):
-        self.train_bar = progressbar.ProgressBar(max_value=self.train_size, fd=self.train_bar_writer)
+    def reset_train_bar(self, train_size=None):
+        self.train_bar = progressbar.ProgressBar(max_value=train_size if train_size is not None else self.train_size,
+                                                 fd=self.train_bar_writer)
 
     def reset_valid_bar(self):
         self.valid_bar = progressbar.ProgressBar(max_value=self.valid_size, fd=self.valid_bar_writer)
