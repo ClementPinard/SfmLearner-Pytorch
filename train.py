@@ -1,7 +1,6 @@
 import argparse
 import time
 import csv
-import datetime
 
 import numpy as np
 import torch
@@ -12,12 +11,11 @@ import torch.nn as nn
 import torch.utils.data
 import custom_transforms
 import models
-from utils import tensor2array, save_checkpoint
+from utils import tensor2array, save_checkpoint, save_path_formatter
 from inverse_warp import inverse_warp
 
 from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss, compute_errors
 from logger import TermLogger, AverageMeter
-from path import Path
 from itertools import chain
 from tensorboardX import SummaryWriter
 
@@ -85,12 +83,8 @@ def main():
         from datasets.stacked_sequence_folders import SequenceFolder
     elif args.dataset_format == 'sequential':
         from datasets.sequence_folders import SequenceFolder
-    save_path = Path('{}epochs{},seq{},rot_{},padding_{},b{},lr{},p{},m{},s{}'.format(
-        args.epochs, ',epochSize'+str(args.epoch_size) if args.epoch_size > 0 else '',
-        args.sequence_length, args.rotation_mode, args.padding_mode, args.batch_size,
-        args.lr, args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight))
-    timestamp = datetime.datetime.now().strftime("%m-%d-%H:%M")
-    args.save_path = 'checkpoints'/save_path/timestamp
+    save_path = save_path_formatter(args, parser)
+    args.save_path = 'checkpoints'/save_path
     print('=> will save everything to {}'.format(args.save_path))
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
