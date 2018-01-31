@@ -11,7 +11,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
 
         reconstruction_loss = 0
         b, _, h, w = depth.size()
-        downscale = tgt_img.size(2)/h
+        downscale = (tgt_img.size(2) + 0.)/h
 
         tgt_img_scaled = nn.functional.adaptive_avg_pool2d(tgt_img, (h, w))
         ref_imgs_scaled = [nn.functional.adaptive_avg_pool2d(ref_img, (h, w)) for ref_img in ref_imgs]
