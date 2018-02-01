@@ -1,8 +1,8 @@
+from __future__ import division
 import torch
 from torch import nn
 from torch.autograd import Variable
 from inverse_warp import inverse_warp
-
 
 def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose, rotation_mode='euler', padding_mode='zeros'):
     def one_scale(depth, explainability_mask):
