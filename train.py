@@ -77,7 +77,7 @@ n_iter = 0
 
 
 def main():
-    global args, best_error, n_iter
+    global best_error, n_iter
     args = parser.parse_args()
     if args.dataset_format == 'stacked':
         from datasets.stacked_sequence_folders import SequenceFolder
@@ -193,15 +193,15 @@ def main():
 
         # train for one epoch
         logger.reset_train_bar()
-        train_loss = train(train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, training_writer)
+        train_loss = train(args, train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, training_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         # evaluate on validation set
         logger.reset_valid_bar()
         if args.with_gt:
-            errors, error_names = validate_with_gt(val_loader, disp_net, epoch, logger, output_writers)
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers)
         else:
-            errors, error_names = validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
+            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
         error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
@@ -232,8 +232,8 @@ def main():
     logger.epoch_bar.finish()
 
 
-def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, train_writer):
-    global args, n_iter
+def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, train_writer):
+    global n_iter
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
@@ -259,7 +259,10 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
         depth = [1/disp for disp in disparities]
         explainability_mask, pose = pose_exp_net(tgt_img_var, ref_imgs_var)
 
-        loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var, intrinsics_var, intrinsics_inv_var, depth, explainability_mask, pose)
+        loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var,
+                                                 intrinsics_var, intrinsics_inv_var,
+                                                 depth, explainability_mask, pose,
+                                                 args.rotation_mode, args.padding_mode)
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask)
         else:
@@ -332,8 +335,7 @@ def train(train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, t
     return losses.avg[0]
 
 
-def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
-    global args
+def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
     batch_time = AverageMeter()
     losses = AverageMeter(i=3, precision=4)
     log_outputs = len(output_writers) > 0
@@ -360,8 +362,8 @@ def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, outpu
 
         loss_1 = photometric_reconstruction_loss(tgt_img_var, ref_imgs_var,
                                                  intrinsics_var, intrinsics_inv_var,
-                                                 depth, explainability_mask,
-                                                 pose, args.rotation_mode, args.padding_mode)
+                                                 depth, explainability_mask, pose,
+                                                 args.rotation_mode, args.padding_mode)
         loss_1 = loss_1.data[0]
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask).data[0]
@@ -409,23 +411,20 @@ def validate_without_gt(val_loader, disp_net, pose_exp_net, epoch, logger, outpu
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: Time {} Loss {}'.format(batch_time, losses))
     if log_outputs:
-        output_writers[0].add_histogram('val poses_tx', poses[:,0], epoch)
-        output_writers[0].add_histogram('val poses_ty', poses[:,1], epoch)
-        output_writers[0].add_histogram('val poses_tz', poses[:,2], epoch)
+        prefix = 'valid poses'
+        coeffs_names = ['tx', 'ty', 'tz']
         if args.rotation_mode == 'euler':
-            rot_coeffs = ['rx', 'ry', 'rz']
+            coeffs_names.extend(['rx', 'ry', 'rz'])
         elif args.rotation_mode == 'quat':
-            rot_coeffs = ['qx', 'qy', 'qz']
-        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[0]), poses[:,3], epoch)
-        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[1]), poses[:,4], epoch)
-        output_writers[0].add_histogram('val poses_{}'.format(rot_coeffs[2]), poses[:,5], epoch)
+            coeffs_names.extend(['qx', 'qy', 'qz'])
+        for i in range(poses.shape[1]):
+            output_writers.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
         output_writers[0].add_histogram('disp_values', disp_values, epoch)
     logger.valid_bar.update(len(val_loader))
     return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
 
 
-def validate_with_gt(val_loader, disp_net, epoch, logger, output_writers=[]):
-    global args
+def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[]):
     batch_time = AverageMeter()
     error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
     errors = AverageMeter(i=len(error_names))
