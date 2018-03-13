@@ -1,7 +1,79 @@
+from __future__ import division
 import numpy as np
 from path import Path
 import scipy.misc
 from collections import Counter
+
+
+def rotx(t):
+    """Rotation about the x-axis."""
+    c = np.cos(t)
+    s = np.sin(t)
+    return np.array([[1,  0,  0],
+                     [0,  c, -s],
+                     [0,  s,  c]])
+
+
+def roty(t):
+    """Rotation about the y-axis."""
+    c = np.cos(t)
+    s = np.sin(t)
+    return np.array([[c,  0,  s],
+                     [0,  1,  0],
+                     [-s, 0,  c]])
+
+
+def rotz(t):
+    """Rotation about the z-axis."""
+    c = np.cos(t)
+    s = np.sin(t)
+    return np.array([[c, -s,  0],
+                     [s,  c,  0],
+                     [0,  0,  1]])
+
+
+def pose_from_oxts_packet(metadata, scale, imu2cam):
+
+    lat, lon, alt, roll, pitch, yaw = metadata
+    """Helper method to compute a SE(3) pose matrix from an OXTS packet.
+    Taken from https://github.com/utiasSTARS/pykitti
+    """
+
+    er = 6378137.  # earth radius (approx.) in meters
+    # Use a Mercator projection to get the translation vector
+    tx = scale * lon * np.pi * er / 180.
+    ty = lat * np.pi * er / 180.
+    tz = alt
+    t = np.array([tx, ty, tz]).reshape(-1, 1)
+
+    # Use the Euler angles to get the rotation matrix
+    Rx = rotx(roll)
+    Ry = roty(pitch)
+    Rz = rotz(yaw)
+    R = Rz.dot(Ry.dot(Rx))
+    R = imu2cam @ R @ np.linalg.inv(imu2cam)
+    t = imu2cam @ t
+    return R, t
+
+
+def read_calib_file(path):
+    # taken from https://github.com/hunse/kitti
+    float_chars = set("0123456789.e+- ")
+    data = {}
+    with open(path, 'r') as f:
+        for line in f.readlines():
+            key, value = line.split(':', 1)
+            value = value.strip()
+            data[key] = value
+            if float_chars.issuperset(value):
+                # try to cast to float array
+                try:
+                    data[key] = np.array(list(map(float, value.split(' '))))
+                except ValueError:
+                    # casting error: data[key] already eq. value, so pass
+                    pass
+
+    return data
 
 
 class KittiRawLoader(object):
@@ -11,7 +83,8 @@ class KittiRawLoader(object):
                  img_height=128,
                  img_width=416,
                  min_speed=2,
-                 get_gt=False):
+                 get_depth=False,
+                 get_pose=False):
         dir_path = Path(__file__).realpath().dirname()
         test_scene_file = dir_path/'test_scenes.txt'
 
@@ -29,7 +102,8 @@ class KittiRawLoader(object):
         self.cam_ids = ['02', '03']
         self.date_list = ['2011_09_26', '2011_09_28', '2011_09_29', '2011_09_30', '2011_10_03']
         self.min_speed = min_speed
-        self.get_gt = get_gt
+        self.get_depth = get_depth
+        self.get_pose = get_pose
         self.collect_train_folders()
 
     def collect_static_frames(self, static_frames_file):
@@ -57,12 +131,35 @@ class KittiRawLoader(object):
         train_scenes = []
         for c in self.cam_ids:
             oxts = sorted((drive/'oxts'/'data').files('*.txt'))
-            scene_data = {'cid': c, 'dir': drive, 'speed': [], 'frame_id': [], 'rel_path': drive.name + '_' + c}
+            scene_data = {'cid': c, 'dir': drive, 'speed': [], 'frame_id': [], 'pose':[], 'rel_path': drive.name + '_' + c}
+            scale = None
+            origin = None
+            orientation = None
+            imu2velo = read_calib_file(drive.parent/'calib_imu_to_velo.txt')
+            velo2cam = read_calib_file(drive.parent/'calib_velo_to_cam.txt')
+
+            imu2cam = velo2cam['R'].reshape(3,3) @ imu2velo['R'].reshape(3,3)
+
             for n, f in enumerate(oxts):
                 metadata = np.genfromtxt(f)
                 speed = metadata[8:11]
                 scene_data['speed'].append(speed)
                 scene_data['frame_id'].append('{:010d}'.format(n))
+                lat = metadata[0]
+
+                if scale is None:
+                    scale = np.cos(lat * np.pi / 180.)
+
+                R, t = pose_from_oxts_packet(metadata[:6], scale, imu2cam)
+                if origin is None:
+                    origin = t
+                if orientation is None:
+                    orientation = R
+
+                # Combine the translation and rotation into a homogeneous transform
+                pose = np.concatenate([np.linalg.inv(orientation) @ R, t-origin], axis=1)
+                scene_data['pose'].append(pose)
+
             sample = self.load_image(scene_data, 0)
             if sample is None:
                 return []
@@ -74,9 +171,12 @@ class KittiRawLoader(object):
 
     def get_scene_imgs(self, scene_data):
         def construct_sample(scene_data, i, frame_id):
-            sample = [self.load_image(scene_data, i)[0], frame_id]
-            if self.get_gt:
-                sample.append(self.generate_depth_map(scene_data, i))
+            sample = {"img":self.load_image(scene_data, i)[0], "id":frame_id}
+
+            if self.get_depth:
+                sample['depth'] = self.generate_depth_map(scene_data, i)
+            if self.get_pose:
+                sample['pose'] = scene_data['pose'][i]
             return sample
 
         if self.from_speed:
