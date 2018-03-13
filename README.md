@@ -102,7 +102,7 @@ While **ATE** is often said to be enough to trajectory estimation, **RE** seems 
 
 [Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
 
-### Depth Results
+### Depth Results
 
 | Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
 |---------|--------|-------|-----------|-------|-------|-------|
