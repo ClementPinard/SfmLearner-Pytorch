@@ -5,24 +5,6 @@ from path import Path
 import random
 
 
-def crawl_folders(folders_list, sequence_length):
-        sequence_set = []
-        demi_length = (sequence_length-1)//2
-        for folder in folders_list:
-            intrinsics = np.genfromtxt(folder/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
-            imgs = sorted(folder.files('*.jpg'))
-            if len(imgs) < sequence_length:
-                continue
-            for i in range(demi_length, len(imgs)-demi_length):
-                sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
-                for j in range(-demi_length, demi_length + 1):
-                    if j != 0:
-                        sample['ref_imgs'].append(imgs[i+j])
-                sequence_set.append(sample)
-        random.shuffle(sequence_set)
-        return sequence_set
-
-
 def load_as_float(path):
     return imread(path).astype(np.float32)
 
@@ -45,8 +27,26 @@ class SequenceFolder(data.Dataset):
         self.root = Path(root)
         scene_list_path = self.root/'train.txt' if train else self.root/'val.txt'
         self.scenes = [self.root/folder[:-1] for folder in open(scene_list_path)]
-        self.samples = crawl_folders(self.scenes, sequence_length)
         self.transform = transform
+        self.crawl_folders(sequence_length)
+
+    def crawl_folders(self, sequence_length):
+        sequence_set = []
+        demi_length = (sequence_length-1)//2
+        shifts = list(range(-demi_length, demi_length + 1))
+        shifts.pop(demi_length)
+        for scene in self.scenes:
+            intrinsics = np.genfromtxt(scene/'cam.txt', delimiter=',').astype(np.float32).reshape((3, 3))
+            imgs = sorted(scene.files('*.jpg'))
+            if len(imgs) < sequence_length:
+                continue
+            for i in range(demi_length, len(imgs)-demi_length):
+                sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
+                for j in shifts:
+                    sample['ref_imgs'].append(imgs[i+j])
+                sequence_set.append(sample)
+        random.shuffle(sequence_set)
+        self.samples = sequence_set
 
     def __getitem__(self, index):
         sample = self.samples[index]
