@@ -38,24 +38,20 @@ path.py
 
 It is also advised to have python3 bindings for opencv for tensorboard visualizations
 
-### What has been done (for the moment)
+### What has been done
 
-* Training has been tested on KITTI and CityScapes. Convergence is reached, although with a different set of hyperparameters.
+* Training has been tested on KITTI and CityScapes.
 * Dataset preparation has been largely improved, and now stores image sequences in folders, making sure that movement is each time big enough between each frame
 * That way, training is now significantly faster, running at ~0.14sec per step vs ~0.2s per steps initially (on a single GTX980Ti)
 * In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
 * You can still choose the former stacked frames dataset format.
 * Convergence is now almost as good as original paper with same hyper parameters
-* You can know compare with groud truth for your validation set. It is still possible to validate without, but you know can see that minimizing photometric error is not equivalent to optimizing depth map.
-
-### Still needed to do
-
-* Pose evaluation code
+* You can know compare with groud truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
 
 ## Preparing training data
 Preparation is roughly the same command as in the original code.
 
-For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-gt` option will save resized copies of groudtruth to help you setting hyper parameters.
+For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-gt` option will save resized copies of groundtruth to help you setting hyper parameters.
 ```bash
 python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt] [--with-gt]
 ```
@@ -88,10 +84,40 @@ Will run inference on all pictures inside `dataset-dir` and save a jpg of dispar
 
 Disparity evaluation is avalaible
 ```bash
-python3 test_disp.py --pretrained-dispnet /path/to/dispnet --pretrained-posent /path/to/posenet --dataset-dir /path/to/KITTI_raw --dataset-list /path/to/test_files_list
+python3 test_disp.py --pretrained-dispnet /path/to/dispnet --pretrained-posenet /path/to/posenet --dataset-dir /path/to/KITTI_raw --dataset-list /path/to/test_files_list
 ```
 
 Test file list is available in kitti eval folder. To get fair comparison with [Original paper evaluation code](https://github.com/tinghuiz/SfMLearner/blob/master/kitti_eval/eval_depth.py), don't specify a posenet. However, if you do,  it will be used to solve the scale factor ambiguity, the only ground truth used to get it will be vehicle speed which is far more acceptable for real conditions quality measurement, but you will obviously get worse results.
+
+Pose evaluation is also available on [Odometry dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php). Be sure to download both color images and pose !
+
+```bash
+python3 test_pose.py --pretrained-posenet /path/to/posenet --dataset-dir /path/to/KITIT_odometry --dataset-list /path/to/test_files_list
+```
+
+**ATE** (*Absolute Trajectory Error*) is computed as long as **RE** for rotation (*Rotation Error*). **RE** between `R1` and `R2` is defined as the angle of `R1*R2^-1` when converted to axis/angle. It corresponds to `RE = arccos( (trace(R1 @ R2^-1) - 1) / 2)`.
+While **ATE** is often said to be enough to trajectory estimation, **RE** seems important here as sequences are only `seq_length` frames long.
+
+## Pretrained Nets
+
+[Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
+
+### Depth Results
+
+| Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
+|---------|--------|-------|-----------|-------|-------|-------|
+| 0.209   | 1.313  | 7.181 | 0.282     | 0.712 | 0.898 | 0.958 | 
+
+### Pose Results
+
+5-frames snippets used
+
+|    | Seq. 09              | Seq. 10              |
+|----|----------------------|----------------------|
+|ATE | 0.0179 (std. 0.0110) | 0.0141 (std. 0.0115) |
+|RE  | 0.0018 (std. 0.0009) | 0.0018 (std. 0.0011) | 
+
+
 
 ## Other Implementations
 
