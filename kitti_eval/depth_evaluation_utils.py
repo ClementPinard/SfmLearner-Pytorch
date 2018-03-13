@@ -28,7 +28,7 @@ class test_framework_KITTI(object):
                 'ref': [imread(img).astype(np.float32) for img in self.img_files[i][1]],
                 'path':self.img_files[i][0],
                 'gt_depth': depth,
-                'displacements': np.array(self.displacements[i]),
+                'displacement': np.array(self.displacements[i]),
                 'mask': generate_mask(depth, self.min_depth, self.max_depth)
                 }
 
@@ -39,21 +39,32 @@ class test_framework_KITTI(object):
 ###############################################################################
 #  EIGEN
 
-def read_text_lines(file_path):
-    f = open(file_path, 'r')
-    lines = f.readlines()
-    f.close()
-    lines = [l.rstrip() for l in lines]
-    return lines
+def getXYZ(lat, lon, alt):
+    """Helper method to compute a SE(3) pose matrix from an OXTS packet.
+    """
+    er = 6378137.  # earth radius (approx.) in meters
+    scale = np.cos(lat * np.pi / 180.)
+
+    # Use a Mercator projection to get the translation vector
+    tx = scale * lon * np.pi * er / 180.
+    ty = er * lat * np.pi / 180.
+    tz = alt
+    t = np.array([tx, ty, tz])
+    return t
 
 
-def get_displacements(oxts_root, index, shifts):
-    with open(oxts_root/'timestamps.txt') as f:
-        timestamps = [datetime.datetime.strptime(ts[:-3], "%Y-%m-%d %H:%M:%S.%f").timestamp() for ts in f.read().splitlines()]
-    oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
-    speed = np.linalg.norm(oxts_data[8:11])
-    assert(all(index+shift < len(timestamps) and index+shift >= 0 for shift in shifts)), str([index+shift for shift in shifts])
-    return [speed*abs(timestamps[index] - timestamps[index + shift]) for shift in shifts]
+def get_displacements(oxts_root, indices):
+    first_pose = None
+    displacement = 0
+    for index in indices:
+        oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
+        lat, lon, alt = oxts_data[:3]
+        pose = getXYZ(lat, lon, alt)
+        if first_pose is None:
+            first_pose = pose
+        else:
+            displacement += np.linalg.norm(pose - first_pose)
+    return displacement / len(indices - 1)
 
 
 def read_scene_data(data_root, test_list, seq_length=3, step=1):
@@ -64,21 +75,18 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
     cams = []
     displacements = []
     demi_length = (seq_length - 1) // 2
-    shift_range = [step*i for i in list(range(-demi_length,0)) + list(range(1, demi_length + 1))]
+    shift_range = step * np.arange(-demi_length, demi_length + 1)
 
     print('getting test metadata ... ')
     for sample in tqdm(test_list):
         tgt_img_path = data_root/sample
         date, scene, cam_id, _, index = sample[:-4].split('/')
 
-        ref_imgs_path = [tgt_img_path.dirname()/'{:010d}.png'.format(int(index) + shift) for shift in shift_range]
+        scene_length = len(tgt_img_path.parent.files('*.png'))
 
-        caped_shift_range = shift_range[:]  # ensures ref_imgs are present, if not, set shift to 0 so that it will be discarded later
-        for i,img in enumerate(ref_imgs_path):
-            if not img.isfile():
-                ref_imgs_path[i] = tgt_img_path
-                caped_shift_range[i] = 0
+        ref_indices = shift_range + np.clip(int(index), step*demi_length, scene_length - step*demi_length - 1)
 
+        ref_imgs_path = [tgt_img_path.dirname()/'{:010d}.png'.format(i) for i in ref_indices]
         vel_path = data_root/date/scene/'velodyne_points'/'data'/'{}.bin'.format(index[:10])
 
         if tgt_img_path.isfile():
@@ -86,7 +94,7 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
             calib_dirs.append(data_root/date)
             im_files.append([tgt_img_path,ref_imgs_path])
             cams.append(int(cam_id[-2:]))
-            displacements.append(get_displacements(data_root/date/scene/'oxts', int(index), caped_shift_range))
+            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices))
         else:
             print('{} missing'.format(tgt_img_path))
     # print(num_probs, 'files missing')

@@ -99,19 +99,24 @@ def main():
         gt_depth = sample['gt_depth']
 
         pred_depth = 1/pred_disp
-        pred_depth_zoomed = zoom(pred_depth, (gt_depth.shape[0]/pred_depth.shape[0],gt_depth.shape[1]/pred_depth.shape[1])).clip(args.min_depth, args.max_depth)
+        pred_depth_zoomed = zoom(pred_depth,
+                                 (gt_depth.shape[0]/pred_depth.shape[0],
+                                  gt_depth.shape[1]/pred_depth.shape[1])
+                                 ).clip(args.min_depth, args.max_depth)
         if sample['mask'] is not None:
             pred_depth_zoomed = pred_depth_zoomed[sample['mask']]
             gt_depth = gt_depth[sample['mask']]
 
         if seq_length > 0:
-            _, poses = pose_net(tgt_img_var, ref_imgs_var)
-            displacements = poses[0,:,:3].norm(2,1).cpu().data.numpy()  # shape [1 - seq_length]
+            # Reorganize ref_imgs_var : tgt is middle frame but not necessarily the one used in DispNetS
+            # (in case sample to test was in end or beginning of the image sequence)
+            middle_index = seq_length//2
+            tgt = ref_imgs_var[middle_index]
+            reorganized_refs = ref_imgs_var[:middle_index] + ref_imgs_var[middle_index + 1:]
+            _, poses = pose_net(tgt, reorganized_refs)
+            mean_displacement_magnitude = poses[0,:,:3].norm(2,1).mean().cpu().data[0]
 
-            scale_factors = [s1/s2 for s1, s2 in zip(sample['displacements'], displacements) if s1 > 0]
-            scale_factor = np.mean(scale_factors) if len(scale_factors) > 0 else 0
-            if len(scale_factors) == 0:
-                print('not good ! ', sample['path'], sample['displacements'])
+            scale_factor = sample['displacement'] / mean_displacement_magnitude
             errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
         scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)

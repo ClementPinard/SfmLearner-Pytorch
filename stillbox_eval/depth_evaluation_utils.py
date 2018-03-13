@@ -18,7 +18,7 @@ class test_framework_stillbox(object):
                 'ref': [imread(img).astype(np.float32) for img in self.img_files[i][1]],
                 'path':self.img_files[i][0],
                 'gt_depth': depth,
-                'displacements': np.array(self.displacements[i]),
+                'displacement': np.array(self.displacements[i]),
                 'mask': generate_mask(depth, self.min_depth, self.max_depth)
                 }
 
@@ -26,10 +26,16 @@ class test_framework_stillbox(object):
         return len(self.img_files)
 
 
-def get_displacements(scene, index, ref_indices):
+def get_displacements(scene, middle_index, ref_indices):
     speed = np.around(np.linalg.norm(scene['speed']), decimals=3)
     assert(all(i < scene['length'] and i >= 0 for i in ref_indices)), str(ref_indices)
-    return [speed*scene['time_step']*abs(index - i) for i in ref_indices]
+    atomic_movement = np.linalg.norm(speed)*scene['time_step']
+    cum_speed = 0
+    for i,index in enumerate(ref_indices):
+        if index != middle_index:
+            cum_speed += atomic_movement * abs(index - middle_index)
+
+    return cum_speed/(len(ref_indices) - 1)
 
 
 def read_scene_data(data_root, test_list, seq_length=3, step=1):
@@ -42,7 +48,7 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
     im_files = []
     displacements = []
     demi_length = (seq_length - 1) // 2
-    shift_range = [step*i for i in list(range(-demi_length,0)) + list(range(1, demi_length + 1))]
+    shift_range = step * np.arange(-demi_length, demi_length + 1)
 
     print('getting test metadata ... ')
     for sample in tqdm(test_list):
@@ -53,12 +59,12 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
         tgt_img_path = data_root/sample
         folder_path = data_root/folder
         if tgt_img_path.isfile():
-            capped_indices_range = list(map(lambda x: min(max(0, index + x), scene['length'] - 1), shift_range))
-            ref_imgs_path = [folder_path/'{}'.format(scene['imgs'][ref_index]) for ref_index in capped_indices_range]
+            ref_indices = shift_range + np.clip(index, step*demi_length, scene['length'] - step * demi_length - 1)
+            ref_imgs_path = [folder_path/'{}'.format(scene['imgs'][ref_index]) for ref_index in ref_indices]
 
             gt_files.append(folder_path/'{}'.format(scene['depth'][index]))
             im_files.append([tgt_img_path,ref_imgs_path])
-            displacements.append(get_displacements(scene, index, capped_indices_range))
+            displacements.append(get_displacements(scene, demi_length, ref_indices))
         else:
             print('{} missing'.format(tgt_img_path))
 
