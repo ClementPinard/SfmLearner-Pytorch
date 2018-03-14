@@ -1,4 +1,3 @@
-from __future__ import division
 import argparse
 import scipy.misc
 import numpy as np
@@ -13,8 +12,10 @@ parser.add_argument("--dataset-format", type=str, required=True, choices=["kitti
 parser.add_argument("--static-frames", default=None,
                     help="list of imgs to discard for being static, if not set will discard them based on speed \
                     (careful, on KITTI some frames have incorrect speed)")
-parser.add_argument("--with-gt", action='store_true',
-                    help="If available (e.g. with KITTI), will store ground truth along with images, for validation")
+parser.add_argument("--with-depth", action='store_true',
+                    help="If available (e.g. with KITTI), will store depth ground truth along with images, for validation")
+parser.add_argument("--with-pose", action='store_true',
+                    help="If available (e.g. with KITTI), will store pose ground truth along with images, for validation")
 parser.add_argument("--dump-root", type=str, required=True, help="Where to dump the data")
 parser.add_argument("--height", type=int, default=128, help="image height")
 parser.add_argument("--width", type=int, default=416, help="image width")
@@ -29,23 +30,24 @@ def dump_example(scene):
         dump_dir = args.dump_root/scene_data['rel_path']
         dump_dir.makedirs_p()
         intrinsics = scene_data['intrinsics']
-        fx = intrinsics[0, 0]
-        fy = intrinsics[1, 1]
-        cx = intrinsics[0, 2]
-        cy = intrinsics[1, 2]
 
         dump_cam_file = dump_dir/'cam.txt'
-        with open(dump_cam_file, 'w') as f:
-            f.write('%f,0.,%f,0.,%f,%f,0.,0.,1.' % (fx, cx, fy, cy))
+
+        np.savetxt(dump_cam_file, intrinsics)
+        poses_file = dump_dir/'poses.txt'
+        poses = []
 
         for sample in data_loader.get_scene_imgs(scene_data):
-            assert(len(sample) >= 2)
-            img, frame_nb = sample[0], sample[1]
+            img, frame_nb = sample["img"], sample["id"]
             dump_img_file = dump_dir/'{}.jpg'.format(frame_nb)
             scipy.misc.imsave(dump_img_file, img)
-            if len(sample) == 3:
+            if "pose" in sample.keys():
+                poses.append(sample["pose"].tolist())
+            if "depth" in sample.keys():
                 dump_depth_file = dump_dir/'{}.npy'.format(frame_nb)
-                np.save(dump_depth_file, sample[2])
+                np.save(dump_depth_file, sample["depth"])
+        if len(poses) != 0:
+            np.savetxt(poses_file, np.array(poses).reshape(-1, 12))
 
         if len(dump_dir.files('*.jpg')) < 3:
             dump_dir.rmtree()
@@ -63,7 +65,8 @@ def main():
                                      static_frames_file=args.static_frames,
                                      img_height=args.height,
                                      img_width=args.width,
-                                     get_gt=args.with_gt)
+                                     get_depth=args.with_depth,
+                                     get_pose=args.with_pose)
 
     if args.dataset_format == 'cityscapes':
         from cityscapes_loader import cityscapes_loader
@@ -72,8 +75,12 @@ def main():
                                         img_width=args.width)
 
     print('Retrieving frames')
-    Parallel(n_jobs=args.num_threads)(delayed(dump_example)(scene) for scene in tqdm(data_loader.scenes))
-    # Split into train/val
+    if args.num_threads == 1:
+        for scene in tqdm(data_loader.scenes):
+            dump_example(scene)
+    else:
+        Parallel(n_jobs=args.num_threads)(delayed(dump_example)(scene) for scene in tqdm(data_loader.scenes))
+
     print('Generating train val lists')
     np.random.seed(8964)
     subfolders = args.dump_root.dirs()
@@ -84,9 +91,12 @@ def main():
                     vf.write('{}\n'.format(s.name))
                 else:
                     tf.write('{}\n'.format(s.name))
-                    # remove useless groundtruth data for training comment if you don't want to erase it
-                    for gt_file in s.files('*.npy'):
-                        gt_file.remove_p()
+
+                    if args.with_gt:
+                        # remove useless groundtruth data for training comment if you don't want to erase it
+                        s/'poses.txt'.remove_p()
+                        for gt_file in s.files('*.npy'):
+                            gt_file.remove_p()
 
 
 if __name__ == '__main__':

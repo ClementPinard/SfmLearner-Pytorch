@@ -105,7 +105,8 @@ class cityscapes_loader(object):
             cum_speed += scene_data['speeds'][i]
             speed_mag = np.linalg.norm(cum_speed)
             if speed_mag > self.min_speed:
-                yield self.load_image(scene_data['city'], scene_data['scene_id'], frame_id), frame_id
+                yield {"img":self.load_image(scene_data['city'], scene_data['scene_id'], frame_id),
+                       "id":frame_id}
                 cum_speed *= 0
 
     def load_image(self, city, scene_id, frame_id):
