@@ -32,7 +32,7 @@ def rotz(t):
                      [0,  0,  1]])
 
 
-def pose_from_oxts_packet(metadata, scale, imu2cam):
+def pose_from_oxts_packet(metadata, scale):
 
     lat, lon, alt, roll, pitch, yaw = metadata
     """Helper method to compute a SE(3) pose matrix from an OXTS packet.
@@ -41,19 +41,20 @@ def pose_from_oxts_packet(metadata, scale, imu2cam):
 
     er = 6378137.  # earth radius (approx.) in meters
     # Use a Mercator projection to get the translation vector
-    tx = scale * lon * np.pi * er / 180.
     ty = lat * np.pi * er / 180.
+
+    tx = scale * lon * np.pi * er / 180.
+    # ty = scale * er * \
+    #     np.log(np.tan((90. + lat) * np.pi / 360.))
     tz = alt
-    t = np.array([tx, ty, tz]).reshape(-1, 1)
+    t = np.array([tx, ty, tz]).reshape(-1,1)
 
     # Use the Euler angles to get the rotation matrix
     Rx = rotx(roll)
     Ry = roty(pitch)
     Rz = rotz(yaw)
     R = Rz.dot(Ry.dot(Rx))
-    R = imu2cam @ R @ np.linalg.inv(imu2cam)
-    t = imu2cam @ t
-    return R, t
+    return transform_from_rot_trans(R, t)
 
 
 def read_calib_file(path):
@@ -76,6 +77,13 @@ def read_calib_file(path):
     return data
 
 
+def transform_from_rot_trans(R, t):
+    """Transforation matrix from rotation matrix and translation vector."""
+    R = R.reshape(3, 3)
+    t = t.reshape(3, 1)
+    return np.vstack((np.hstack([R, t]), [0, 0, 0, 1]))
+
+
 class KittiRawLoader(object):
     def __init__(self,
                  dataset_dir,
@@ -84,7 +92,8 @@ class KittiRawLoader(object):
                  img_width=416,
                  min_speed=2,
                  get_depth=False,
-                 get_pose=False):
+                 get_pose=False,
+                 depth_size_ratio=1):
         dir_path = Path(__file__).realpath().dirname()
         test_scene_file = dir_path/'test_scenes.txt'
 
@@ -104,6 +113,7 @@ class KittiRawLoader(object):
         self.min_speed = min_speed
         self.get_depth = get_depth
         self.get_pose = get_pose
+        self.depth_size_ratio = depth_size_ratio
         self.collect_train_folders()
 
     def collect_static_frames(self, static_frames_file):
@@ -134,11 +144,15 @@ class KittiRawLoader(object):
             scene_data = {'cid': c, 'dir': drive, 'speed': [], 'frame_id': [], 'pose':[], 'rel_path': drive.name + '_' + c}
             scale = None
             origin = None
-            orientation = None
             imu2velo = read_calib_file(drive.parent/'calib_imu_to_velo.txt')
             velo2cam = read_calib_file(drive.parent/'calib_velo_to_cam.txt')
+            cam2cam = read_calib_file(drive.parent/'calib_cam_to_cam.txt')
 
-            imu2cam = velo2cam['R'].reshape(3,3) @ imu2velo['R'].reshape(3,3)
+            velo2cam_mat = transform_from_rot_trans(velo2cam['R'], velo2cam['T'])
+            imu2velo_mat = transform_from_rot_trans(imu2velo['R'], imu2velo['T'])
+            cam_2rect_mat = transform_from_rot_trans(cam2cam['R_rect_00'], np.zeros(3))
+
+            imu2cam = cam_2rect_mat @ velo2cam_mat @ imu2velo_mat
 
             for n, f in enumerate(oxts):
                 metadata = np.genfromtxt(f)
@@ -150,15 +164,12 @@ class KittiRawLoader(object):
                 if scale is None:
                     scale = np.cos(lat * np.pi / 180.)
 
-                R, t = pose_from_oxts_packet(metadata[:6], scale, imu2cam)
+                pose_matrix = pose_from_oxts_packet(metadata[:6], scale)
                 if origin is None:
-                    origin = t
-                if orientation is None:
-                    orientation = R
+                    origin = pose_matrix
 
-                # Combine the translation and rotation into a homogeneous transform
-                pose = np.concatenate([np.linalg.inv(orientation) @ R, t-origin], axis=1)
-                scene_data['pose'].append(pose)
+                odo_pose = imu2cam @ np.linalg.inv(origin) @ pose_matrix @ np.linalg.inv(imu2cam)
+                scene_data['pose'].append(odo_pose[:3])
 
             sample = self.load_image(scene_data, 0)
             if sample is None:
@@ -243,7 +254,10 @@ class KittiRawLoader(object):
         velo2cam = self.read_raw_calib_file(calib_dir/'calib_velo_to_cam.txt')
         velo2cam = np.hstack((velo2cam['R'].reshape(3,3), velo2cam['T'][..., np.newaxis]))
         velo2cam = np.vstack((velo2cam, np.array([0, 0, 0, 1.0])))
-        P_rect = scene_data['P_rect']
+        P_rect = np.copy(scene_data['P_rect'])
+        P_rect[0] /= self.depth_size_ratio
+        P_rect[1] /= self.depth_size_ratio
+
         R_cam2rect[:3,:3] = cam2cam['R_rect_00'].reshape(3,3)
 
         P_velo2im = np.dot(np.dot(P_rect, R_cam2rect), velo2cam)
@@ -266,11 +280,12 @@ class KittiRawLoader(object):
         velo_pts_im[:, 1] = np.round(velo_pts_im[:,1]) - 1
 
         val_inds = (velo_pts_im[:, 0] >= 0) & (velo_pts_im[:, 1] >= 0)
-        val_inds = val_inds & (velo_pts_im[:,0] < self.img_width) & (velo_pts_im[:,1] < self.img_height)
+        val_inds = val_inds & (velo_pts_im[:,0] < self.img_width/self.depth_size_ratio)
+        val_inds = val_inds & (velo_pts_im[:,1] < self.img_height/self.depth_size_ratio)
         velo_pts_im = velo_pts_im[val_inds, :]
 
         # project to image
-        depth = np.zeros((self.img_height, self.img_width)).astype(np.float32)
+        depth = np.zeros((self.img_height // self.depth_size_ratio, self.img_width // self.depth_size_ratio)).astype(np.float32)
         depth[velo_pts_im[:, 1].astype(np.int), velo_pts_im[:, 0].astype(np.int)] = velo_pts_im[:, 2]
 
         # find the duplicate points and choose the closest depth
