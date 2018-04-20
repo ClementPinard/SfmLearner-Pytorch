@@ -1,18 +1,10 @@
 # Mostly based on the code written by Clement Godard:
 # https://github.com/mrharicot/monodepth/blob/master/utils/evaluation_utils.py
 import numpy as np
-# import pandas as pd
-import datetime
 from collections import Counter
 from path import Path
 from scipy.misc import imread
 from tqdm import tqdm
-
-width_to_focal = dict()
-width_to_focal[1242] = 721.5377
-width_to_focal[1241] = 718.856
-width_to_focal[1224] = 707.0493
-width_to_focal[1238] = 718.3351
 
 
 class test_framework_KITTI(object):
@@ -53,10 +45,10 @@ def getXYZ(lat, lon, alt):
     return t
 
 
-def get_displacements(oxts_root, indices):
+def get_displacements(oxts_root, indices, tgt_index):
     first_pose = None
     displacement = 0
-    for index in indices:
+    for index in [tgt_index] + [*indices]:
         oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
         lat, lon, alt = oxts_data[:3]
         pose = getXYZ(lat, lon, alt)
@@ -64,7 +56,7 @@ def get_displacements(oxts_root, indices):
             first_pose = pose
         else:
             displacement += np.linalg.norm(pose - first_pose)
-    return displacement / len(indices - 1)
+    return displacement / max(len(indices - 1), 1)
 
 
 def read_scene_data(data_root, test_list, seq_length=3, step=1):
@@ -94,7 +86,7 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
             calib_dirs.append(data_root/date)
             im_files.append([tgt_img_path,ref_imgs_path])
             cams.append(int(cam_id[-2:]))
-            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices))
+            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices, int(index)))
         else:
             print('{} missing'.format(tgt_img_path))
     # print(num_probs, 'files missing')
@@ -127,25 +119,6 @@ def read_calib_file(path):
                     pass
 
     return data
-
-
-def get_focal_length_baseline(calib_dir, cam=2):
-    cam2cam = read_calib_file(calib_dir + 'calib_cam_to_cam.txt')
-    P2_rect = cam2cam['P_rect_02'].reshape(3,4)
-    P3_rect = cam2cam['P_rect_03'].reshape(3,4)
-
-    # cam 2 is left of camera 0  -6cm
-    # cam 3 is to the right  +54cm
-    b2 = P2_rect[0,3] / -P2_rect[0,0]
-    b3 = P3_rect[0,3] / -P3_rect[0,0]
-    baseline = b3-b2
-
-    if cam == 2:
-        focal_length = P2_rect[0,0]
-    elif cam == 3:
-        focal_length = P3_rect[0,0]
-
-    return focal_length, baseline
 
 
 def sub2ind(matrixSize, rowSub, colSub):
