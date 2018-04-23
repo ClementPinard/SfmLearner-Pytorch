@@ -108,6 +108,12 @@ While **ATE** is often said to be enough to trajectory estimation, **RE** seems 
 
 [Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
 
+Arguments used :
+
+```bash
+python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --sequence-length 5 --log-output --with-gt
+```
+
 ### Depth Results
 
 | Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
