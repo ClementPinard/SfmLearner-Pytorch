@@ -4,6 +4,7 @@ from torch import nn
 from torch.autograd import Variable
 from inverse_warp import inverse_warp
 
+
 def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_inv, depth, explainability_mask, pose, rotation_mode='euler', padding_mode='zeros'):
     def one_scale(depth, explainability_mask):
         assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
@@ -54,24 +55,24 @@ def explainability_loss(mask):
     return loss
 
 
-def smooth_loss(pred_disp):
+def smooth_loss(pred_map):
     def gradient(pred):
         D_dy = pred[:, :, 1:] - pred[:, :, :-1]
         D_dx = pred[:, :, :, 1:] - pred[:, :, :, :-1]
         return D_dx, D_dy
 
-    if type(pred_disp) not in [tuple, list]:
-        pred_disp = [pred_disp]
+    if type(pred_map) not in [tuple, list]:
+        pred_map = [pred_map]
 
     loss = 0
     weight = 1.
 
-    for scaled_disp in pred_disp:
-        dx, dy = gradient(scaled_disp)
+    for scaled_map in pred_map:
+        dx, dy = gradient(scaled_map)
         dx2, dxdy = gradient(dx)
         dydx, dy2 = gradient(dy)
         loss += (dx2.abs().mean() + dxdy.abs().mean() + dydx.abs().mean() + dy2.abs().mean())*weight
-        weight /= 2.83  # 2sqrt(2)
+        weight /= 2.3  # don't ask me why it works better
     return loss
 
 
