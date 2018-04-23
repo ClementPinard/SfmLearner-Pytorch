@@ -32,12 +32,16 @@ class test_framework_KITTI(object):
 #  EIGEN
 
 def getXYZ(lat, lon, alt):
-    """Helper method to compute a SE(3) pose matrix from an OXTS packet.
+    """Helper method to compute a R(3) pose vector from an OXTS packet.
+    Unlike KITTI official devkit, we use sinusoidal projection (https://en.wikipedia.org/wiki/Sinusoidal_projection)
+    instead of mercator as it is much simpler.
+    Initially Mercator was used because it renders nicely for Odometry vizualisation, but we don't need that here.
+    In order to avoid problems for potential other runs closer to the pole in the future,
+    we stick to sinusoidal which keeps the distances cleaner than mercator (and that's the only thing we want here)
+    See https://github.com/utiasSTARS/pykitti/issues/24
     """
     er = 6378137.  # earth radius (approx.) in meters
     scale = np.cos(lat * np.pi / 180.)
-
-    # Use a Mercator projection to get the translation vector
     tx = scale * lon * np.pi * er / 180.
     ty = er * lat * np.pi / 180.
     tz = alt
@@ -46,9 +50,13 @@ def getXYZ(lat, lon, alt):
 
 
 def get_displacements(oxts_root, indices, tgt_index):
+    """gets mean displacement magntidue between middle frame and other frames, this is, to a scaling factor
+    the mean output PoseNet should have for translation. Since the scaling is the same factor for depth maps and
+    for translations, it will be used to determine how much predicted depth should be multiplied to."""
     first_pose = None
     displacement = 0
-    for index in [tgt_index] + [*indices]:
+    reordered_indices = [indices[tgt_index]] + indices[:tgt_index] + indices[tgt_index + 1:]
+    for index in reordered_indices:
         oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
         lat, lon, alt = oxts_data[:3]
         pose = getXYZ(lat, lon, alt)
@@ -86,7 +94,7 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
             calib_dirs.append(data_root/date)
             im_files.append([tgt_img_path,ref_imgs_path])
             cams.append(int(cam_id[-2:]))
-            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices, int(index)))
+            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices, demi_length))
         else:
             print('{} missing'.format(tgt_img_path))
     # print(num_probs, 'files missing')

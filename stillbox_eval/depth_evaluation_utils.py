@@ -27,15 +27,16 @@ class test_framework_stillbox(object):
 
 
 def get_displacements(scene, middle_index, ref_indices):
-    speed = np.around(np.linalg.norm(scene['speed']), decimals=3)
     assert(all(i < scene['length'] and i >= 0 for i in ref_indices)), str(ref_indices)
-    atomic_movement = np.linalg.norm(speed)*scene['time_step']
+    atomic_movement = np.linalg.norm(scene['speed'])*scene['time_step']
     cum_speed = 0
+    """in Still box, movements are rectilinear so magnitude adds up.
+    I mean, this is very convenient, I wonder who is the genius who came with such a dataset"""
     for i,index in enumerate(ref_indices):
         if index != middle_index:
             cum_speed += atomic_movement * abs(index - middle_index)
 
-    return cum_speed/(len(ref_indices) - 1)
+    return cum_speed/max(len(ref_indices) - 1, 1)
 
 
 def read_scene_data(data_root, test_list, seq_length=3, step=1):
