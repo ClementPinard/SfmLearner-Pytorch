@@ -55,7 +55,7 @@ def get_displacements(oxts_root, indices, tgt_index):
     for translations, it will be used to determine how much predicted depth should be multiplied to."""
     first_pose = None
     displacement = 0
-    reordered_indices = [indices[tgt_index]] + indices[:tgt_index] + indices[tgt_index + 1:]
+    reordered_indices = [indices[tgt_index]] + [*indices[:tgt_index]] + [*indices[tgt_index + 1:]]
     for index in reordered_indices:
         oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
         lat, lon, alt = oxts_data[:3]
