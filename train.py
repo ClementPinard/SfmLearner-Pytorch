@@ -209,7 +209,7 @@ def main():
             training_writer.add_scalar(name, error, epoch)
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
-        decisive_error = errors[0]
+        decisive_error = errors[1]
         if best_error < 0:
             best_error = decisive_error
 
