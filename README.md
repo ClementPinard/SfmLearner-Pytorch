@@ -48,6 +48,12 @@ It is also advised to have python3 bindings for opencv for tensorboard visualiza
 * Convergence is now almost as good as original paper with same hyper parameters
 * You can know compare with groud truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
 
+### Differences with official Implementation
+
+* Smooth Loss is different from official repo. Instead of applying it to disparity, we apply it to depth. Original disparity smooth loss did not work well (don't know why !) and it did not even converge at all with weight values used (0.5).
+* loss is divided by `2.3` when downscaling instead of `2`. This is the results of empiric experiments, so the optimal value is clearly not carefully determined.
+* As a consequence, with a smooth loss of `2.0̀`, depth test is better, but Pose test is worse. To revert smooth loss back to original, you can change it [here](train.py#L270)
+
 ## Preparing training data
 Preparation is roughly the same command as in the original code.
 
@@ -106,7 +112,7 @@ While **ATE** is often said to be enough to trajectory estimation, **RE** seems 
 
 | Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
 |---------|--------|-------|-----------|-------|-------|-------|
-| 0.209   | 1.313  | 7.181 | 0.282     | 0.712 | 0.898 | 0.958 | 
+| 0.181   | 1.341  | 6.236 | 0.262     | 0.733 | 0.901 | 0.964 | 
 
 ### Pose Results
 
