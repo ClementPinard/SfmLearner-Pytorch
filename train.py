@@ -286,8 +286,8 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
                 train_writer.add_image('train Dispnet Output Normalized {}'.format(k),
                                        tensor2array(disparities[k].data[0].cpu(), max_value=None, colormap='bone'),
                                        n_iter)
-                train_writer.add_image('train Depth Output {}'.format(k),
-                                       tensor2array(1/disparities[k].data[0].cpu(), max_value=3),
+                train_writer.add_image('train Depth Output Normalized {}'.format(k),
+                                       tensor2array(1/disparities[k].data[0].cpu(), max_value=None),
                                        n_iter)
                 b, _, h, w = scaled_depth.size()
                 downscale = tgt_img_var.size(2)/h
@@ -379,7 +379,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
                     output_writers[index].add_image('val Input {}'.format(j), tensor2array(ref[0]), 1)
 
             output_writers[index].add_image('val Dispnet Output Normalized', tensor2array(disp.data[0].cpu(), max_value=None, colormap='bone'), epoch)
-            output_writers[index].add_image('val Depth Output', tensor2array(1./disp.data[0].cpu(), max_value=3), epoch)
+            output_writers[index].add_image('val Depth Output Normalized', tensor2array(1./disp.data[0].cpu(), max_value=None), epoch)
             # log warped images along with explainability mask
             for j,ref in enumerate(ref_imgs_var):
                 ref_warped = inverse_warp(ref[:1], depth[:1,0], pose[:1,j],
@@ -448,7 +448,7 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[
             if epoch == 0:
                 output_writers[index].add_image('val Input', tensor2array(tgt_img[0]), 0)
                 depth_to_show = depth[0].cpu()
-                output_writers[index].add_image('val target Depth', tensor2array(depth_to_show, max_value=3), epoch)
+                output_writers[index].add_image('val target Depth', tensor2array(depth_to_show, max_value=10), epoch)
                 depth_to_show[depth_to_show == 0] = 1000
                 disp_to_show = (1/depth_to_show).clamp(0,10)
                 output_writers[index].add_image('val target Disparity Normalized', tensor2array(disp_to_show, max_value=None, colormap='bone'), epoch)
