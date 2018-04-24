@@ -418,7 +418,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
         elif args.rotation_mode == 'quat':
             coeffs_names.extend(['qx', 'qy', 'qz'])
         for i in range(poses.shape[1]):
-            output_writers.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
+            output_writers[0].add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
         output_writers[0].add_histogram('disp_values', disp_values, epoch)
     logger.valid_bar.update(len(val_loader))
     return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
