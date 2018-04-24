@@ -73,12 +73,12 @@ def main():
         inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data.numpy().astype(np.float64)
 
         rot_matrices = np.linalg.inv(inv_transform_matrices[:,:,:3])
-        tr_vectors = rot_matrices @ inv_transform_matrices[:,:,-1:]
+        tr_vectors = -rot_matrices @ inv_transform_matrices[:,:,-1:]
 
         transform_matrices = np.concatenate([rot_matrices, tr_vectors], axis=-1)
 
         first_inv_transform = inv_transform_matrices[0]
-        final_poses = np.linalg.inv(first_inv_transform[:,:3]) @ transform_matrices
+        final_poses = first_inv_transform[:,:3] @ transform_matrices
         final_poses[:,:,-1:] += first_inv_transform[:,-1:]
 
         if args.output_dir is not None:
