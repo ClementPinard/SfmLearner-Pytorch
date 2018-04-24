@@ -70,16 +70,16 @@ def main():
         poses = poses.cpu().data[0]
         poses = torch.cat([poses[:len(imgs)//2], torch.zeros(1,6).float(), poses[len(imgs)//2:]])
 
-        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data
+        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data.numpy().astype(np.float64)
 
         rot_matrices = np.linalg.inv(inv_transform_matrices[:,:,:3])
         tr_vectors = rot_matrices @ inv_transform_matrices[:,:,-1:]
 
         transform_matrices = np.concatenate([rot_matrices, tr_vectors], axis=-1)
 
-        first_transform = transform_matrices[0]
-        final_poses = np.linalg.inv(first_transform[:,:3]) @ transform_matrices
-        final_poses[:,:,-1:] -= first_transform[:,-1:]
+        first_inv_transform = inv_transform_matrices[0]
+        final_poses = np.linalg.inv(first_inv_transform[:,:3]) @ transform_matrices
+        final_poses[:,:,-1:] += first_inv_transform[:,-1:]
 
         if args.output_dir is not None:
             predictions_array[j] = final_poses
@@ -101,13 +101,11 @@ def main():
 
 
 def compute_pose_error(gt, pred):
-    ATE = 0
     RE = 0
     snippet_length = gt.shape[0]
     scale_factor = np.sum(gt[:,:,-1] * pred[:,:,-1])/np.sum(pred[:,:,-1] ** 2)
+    ATE = np.linalg.norm((gt[:,:,-1] - scale_factor * pred[:,:,-1]).reshape(-1))
     for gt_pose, pred_pose in zip(gt, pred):
-        ATE += np.linalg.norm(gt_pose[:,-1] - scale_factor * pred_pose[:,-1])
-
         # Residual matrix to which we compute angle's sin and cos
         R = gt_pose[:,:3] @ np.linalg.inv(pred_pose[:,:3])
         s = np.linalg.norm([R[0,1]-R[1,0],
