@@ -98,7 +98,7 @@ Test file list is available in kitti eval folder. To get fair comparison with [O
 Pose evaluation is also available on [Odometry dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php). Be sure to download both color images and pose !
 
 ```bash
-python3 test_pose.py --pretrained-posenet /path/to/posenet --dataset-dir /path/to/KITIT_odometry --sequences [09]
+python3 test_pose.py /path/to/posenet --dataset-dir /path/to/KITIT_odometry --sequences [09]
 ```
 
 **ATE** (*Absolute Trajectory Error*) is computed as long as **RE** for rotation (*Rotation Error*). **RE** between `R1` and `R2` is defined as the angle of `R1*R2^-1` when converted to axis/angle. It corresponds to `RE = arccos( (trace(R1 @ R2^-1) - 1) / 2)`.
