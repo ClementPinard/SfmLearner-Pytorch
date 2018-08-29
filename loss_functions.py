@@ -1,6 +1,7 @@
 from __future__ import division
 import torch
 from torch import nn
+import torch.nn.functional as F
 from torch.autograd import Variable
 from inverse_warp import inverse_warp
 
@@ -14,8 +15,8 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
         b, _, h, w = depth.size()
         downscale = tgt_img.size(2)/h
 
-        tgt_img_scaled = nn.functional.adaptive_avg_pool2d(tgt_img, (h, w))
-        ref_imgs_scaled = [nn.functional.adaptive_avg_pool2d(ref_img, (h, w)) for ref_img in ref_imgs]
+        tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
+        ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
         intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
         intrinsics_scaled_inv = torch.cat((intrinsics_inv[:, :, 0:2]*downscale, intrinsics_inv[:, :, 2:]), dim=2)
 
@@ -30,7 +31,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics, intrinsics_in
                 diff = diff * explainability_mask[:,i:i+1].expand_as(diff)
 
             reconstruction_loss += diff.abs().mean()
-            assert((reconstruction_loss == reconstruction_loss).data[0] == 1)
+            assert((reconstruction_loss == reconstruction_loss).item() == 1)
 
         return reconstruction_loss
 
@@ -76,6 +77,7 @@ def smooth_loss(pred_map):
     return loss
 
 
+@torch.no_grad()
 def compute_errors(gt, pred, crop=True):
     abs_diff, abs_rel, sq_rel, a1, a2, a3 = 0,0,0,0,0,0
     batch_size = gt.size(0)
@@ -111,4 +113,4 @@ def compute_errors(gt, pred, crop=True):
 
         sq_rel += torch.mean(((valid_gt - valid_pred)**2) / valid_gt)
 
-    return [metric / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
+    return [metric.item() / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]

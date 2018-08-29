@@ -26,14 +26,17 @@ parser.add_argument("--output-dir", default=None, type=str, help="Output directo
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 parser.add_argument("--rotation-mode", default='euler', choices=['euler', 'quat'], type=str)
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
+@torch.no_grad()
 def main():
     args = parser.parse_args()
     from kitti_eval.pose_evaluation_utils import test_framework_KITTI as test_framework
 
     weights = torch.load(args.pretrained_posenet)
     seq_length = int(weights['state_dict']['conv1.0.weight'].size(1)/3)
-    pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1, output_exp=False).cuda()
+    pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1, output_exp=False).to(device)
     pose_net.load_state_dict(weights['state_dict'], strict=False)
 
     dataset_dir = Path(args.dataset_dir)
@@ -55,22 +58,21 @@ def main():
 
         imgs = [np.transpose(img, (2,0,1)) for img in imgs]
 
-        ref_imgs_var = []
+        ref_imgs = []
         for i, img in enumerate(imgs):
             img = torch.from_numpy(img).unsqueeze(0)
-            img = ((img/255 - 0.5)/0.5).cuda()
-            img_var = Variable(img, volatile=True)
+            img = ((img/255 - 0.5)/0.5).to(device)
             if i == len(imgs)//2:
-                tgt_img_var = img_var
+                tgt_img = img
             else:
-                ref_imgs_var.append(Variable(img, volatile=True))
+                ref_imgs.append(img)
 
-        _, poses = pose_net(tgt_img_var, ref_imgs_var)
+        _, poses = pose_net(tgt_img, ref_imgs)
 
-        poses = poses.cpu().data[0]
+        poses = poses.cpu()[0]
         poses = torch.cat([poses[:len(imgs)//2], torch.zeros(1,6).float(), poses[len(imgs)//2:]])
 
-        inv_transform_matrices = pose_vec2mat(Variable(poses), rotation_mode=args.rotation_mode).data.numpy().astype(np.float64)
+        inv_transform_matrices = pose_vec2mat(poses, rotation_mode=args.rotation_mode).numpy().astype(np.float64)
 
         rot_matrices = np.linalg.inv(inv_transform_matrices[:,:,:3])
         tr_vectors = -rot_matrices @ inv_transform_matrices[:,:,-1:]

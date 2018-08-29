@@ -1,6 +1,7 @@
 import torch
 
-from scipy.misc import imread, imsave, imresize
+from imageio import imread, imsave
+from scipy import imresize
 import numpy as np
 from path import Path
 import argparse
@@ -25,14 +26,17 @@ parser.add_argument("--output-dir", default='output', type=str, help="Output dir
 
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
+@torch.no_grad()
 def main():
     args = parser.parse_args()
     if not(args.output_disp or args.output_depth):
         print('You must at least output one value !')
         return
 
-    disp_net = DispNetS().cuda()
+    disp_net = DispNetS().to(device)
     weights = torch.load(args.pretrained)
     disp_net.load_state_dict(weights['state_dict'])
     disp_net.eval()
@@ -59,10 +63,9 @@ def main():
         img = np.transpose(img, (2, 0, 1))
 
         tensor_img = torch.from_numpy(img).unsqueeze(0)
-        tensor_img = ((tensor_img/255 - 0.5)/0.2).cuda()
-        var_img = torch.autograd.Variable(tensor_img, volatile=True)
+        tensor_img = ((tensor_img/255 - 0.5)/0.2).to(device)
 
-        output = disp_net(var_img).data.cpu()[0]
+        output = disp_net(img)[0]
 
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=None, colormap='bone')).astype(np.uint8)

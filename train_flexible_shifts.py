@@ -22,10 +22,11 @@ parser.add_argument('-d', '--target-displacement', type=float, help='displacemen
 
 best_error = -1
 n_iter = 0
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
 def main():
-    global args, best_error, n_iter
+    global args, best_error, n_iter, device
     args = parser.parse_args()
     save_path = save_path_formatter(args, parser)
     args.save_path = 'checkpoints_shifted'/save_path
@@ -99,7 +100,7 @@ def main():
     output_exp = args.mask_loss_weight > 0
     if not output_exp:
         print("=> no mask loss, PoseExpnet will only output pose")
-    pose_exp_net = models.PoseExpNet(nb_ref_imgs=args.sequence_length - 1, output_exp=args.mask_loss_weight > 0).cuda()
+    pose_exp_net = models.PoseExpNet(nb_ref_imgs=args.sequence_length - 1, output_exp=args.mask_loss_weight > 0).to(device)
 
     if args.pretrained_exp_pose:
         print("=> using pre-trained weights for explainabilty and pose net")
@@ -191,6 +192,7 @@ def main():
     logger.epoch_bar.finish()
 
 
+@torch.no_grad()
 def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, train_writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -203,18 +205,18 @@ def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, t
     for i, (indices, tgt_img, ref_imgs, intrinsics, intrinsics_inv) in enumerate(adjust_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        tgt_img_var = Variable(tgt_img.cuda())
-        ref_imgs_var = [Variable(img.cuda()) for img in ref_imgs]
+        tgt_img = tgt_img.to(device)
+        ref_imgs = [img.to(device) for img in ref_imgs]
 
         # compute output
-        explainability_mask, pose_batch = pose_exp_net(tgt_img_var, ref_imgs_var)
+        explainability_mask, pose_batch = pose_exp_net(tgt_img, ref_imgs)
 
         if i < len(adjust_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
-            poses[i * step:(i+1) * step] = pose_batch.data.cpu().view(-1,6).numpy()
+            poses[i * step:(i+1) * step] = pose_batch.cpu().reshape(-1,6).numpy()
 
         for index, pose in zip(indices, pose_batch):
-            displacements = pose[:,:3].norm(p=2, dim=1).data.cpu().numpy()
+            displacements = pose[:,:3].norm(p=2, dim=1).cpu().numpy()
             train_set.reset_shifts(index, displacements)
             new_shifts.update(train_set.samples[index]['ref_imgs'])
 

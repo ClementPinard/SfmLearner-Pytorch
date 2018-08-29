@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn.init import xavier_uniform_, zeros_
 
 
 def conv(in_planes, out_planes, kernel_size=3):
@@ -50,9 +51,9 @@ class PoseExpNet(nn.Module):
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.xavier_uniform(m.weight.data)
+                xavier_uniform_(m.weight.data)
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    zeros_(m.bias)
 
     def forward(self, target_image, ref_imgs):
         assert(len(ref_imgs) == self.nb_ref_imgs)

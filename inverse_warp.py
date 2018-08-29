@@ -1,6 +1,6 @@
 from __future__ import division
 import torch
-from torch.autograd import Variable
+import torch.nn.functional as F
 
 pixel_coords = None
 
@@ -8,9 +8,9 @@ pixel_coords = None
 def set_id_grid(depth):
     global pixel_coords
     b, h, w = depth.size()
-    i_range = Variable(torch.arange(0, h).view(1, h, 1).expand(1,h,w)).type_as(depth)  # [1, H, W]
-    j_range = Variable(torch.arange(0, w).view(1, 1, w).expand(1,h,w)).type_as(depth)  # [1, H, W]
-    ones = Variable(torch.ones(1,h,w)).type_as(depth)
+    i_range = torch.arange(0, h).view(1, h, 1).expand(1,h,w).type_as(depth)  # [1, H, W]
+    j_range = torch.arange(0, w).view(1, 1, w).expand(1,h,w).type_as(depth)  # [1, H, W]
+    ones = torch.ones(1,h,w).type_as(depth)
 
     pixel_coords = torch.stack((j_range, i_range, ones), dim=1)  # [1, 3, H, W]
 
@@ -35,8 +35,8 @@ def pixel2cam(depth, intrinsics_inv):
     b, h, w = depth.size()
     if (pixel_coords is None) or pixel_coords.size(2) < h:
         set_id_grid(depth)
-    current_pixel_coords = pixel_coords[:,:,:h,:w].expand(b,3,h,w).contiguous().view(b, 3, -1)  # [B, 3, H*W]
-    cam_coords = intrinsics_inv.bmm(current_pixel_coords).view(b, 3, h, w)
+    current_pixel_coords = pixel_coords[:,:,:h,:w].expand(b,3,h,w).reshape(b, 3, -1)  # [B, 3, H*W]
+    cam_coords = (intrinsics_inv @ current_pixel_coords).reshape(b, 3, h, w)
     return cam_coords * depth.unsqueeze(1)
 
 
@@ -50,9 +50,9 @@ def cam2pixel(cam_coords, proj_c2p_rot, proj_c2p_tr, padding_mode):
         array of [-1,1] coordinates -- [B, 2, H, W]
     """
     b, _, h, w = cam_coords.size()
-    cam_coords_flat = cam_coords.view(b, 3, -1)  # [B, 3, H*W]
+    cam_coords_flat = cam_coords.reshape(b, 3, -1)  # [B, 3, H*W]
     if proj_c2p_rot is not None:
-        pcoords = proj_c2p_rot.bmm(cam_coords_flat)
+        pcoords = proj_c2p_rot @ cam_coords_flat
     else:
         pcoords = cam_coords_flat
 
@@ -71,7 +71,7 @@ def cam2pixel(cam_coords, proj_c2p_rot, proj_c2p_tr, padding_mode):
         Y_norm[Y_mask] = 2
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
-    return pixel_coords.view(b,h,w,2)
+    return pixel_coords.reshape(b,h,w,2)
 
 
 def euler2mat(angle):
@@ -94,23 +94,23 @@ def euler2mat(angle):
     ones = zeros.detach()+1
     zmat = torch.stack([cosz, -sinz, zeros,
                         sinz,  cosz, zeros,
-                        zeros, zeros,  ones], dim=1).view(B, 3, 3)
+                        zeros, zeros,  ones], dim=1).reshape(B, 3, 3)
 
     cosy = torch.cos(y)
     siny = torch.sin(y)
 
     ymat = torch.stack([cosy, zeros,  siny,
                         zeros,  ones, zeros,
-                        -siny, zeros,  cosy], dim=1).view(B, 3, 3)
+                        -siny, zeros,  cosy], dim=1).reshape(B, 3, 3)
 
     cosx = torch.cos(x)
     sinx = torch.sin(x)
 
     xmat = torch.stack([ones, zeros, zeros,
                         zeros,  cosx, -sinx,
-                        zeros,  sinx,  cosx], dim=1).view(B, 3, 3)
+                        zeros,  sinx,  cosx], dim=1).reshape(B, 3, 3)
 
-    rotMat = xmat.bmm(ymat).bmm(zmat)
+    rotMat = xmat @ ymat @ zmat
     return rotMat
 
 
@@ -134,7 +134,7 @@ def quat2mat(quat):
 
     rotMat = torch.stack([w2 + x2 - y2 - z2, 2*xy - 2*wz, 2*wy + 2*xz,
                           2*wz + 2*xy, w2 - x2 + y2 - z2, 2*yz - 2*wx,
-                          2*xz - 2*wy, 2*wx + 2*yz, w2 - x2 - y2 + z2], dim=1).view(B, 3, 3)
+                          2*xz - 2*wy, 2*wx + 2*yz, w2 - x2 - y2 + z2], dim=1).reshape(B, 3, 3)
     return rotMat
 
 
@@ -185,9 +185,9 @@ def inverse_warp(img, depth, pose, intrinsics, intrinsics_inv, rotation_mode='eu
     pose_mat = pose_vec2mat(pose, rotation_mode)  # [B,3,4]
 
     # Get projection matrix for tgt camera frame to source pixel frame
-    proj_cam_to_src_pixel = intrinsics.bmm(pose_mat)  # [B, 3, 4]
+    proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
 
     src_pixel_coords = cam2pixel(cam_coords, proj_cam_to_src_pixel[:,:,:3], proj_cam_to_src_pixel[:,:,-1:], padding_mode)  # [B,H,W,2]
-    projected_img = torch.nn.functional.grid_sample(img, src_pixel_coords, padding_mode=padding_mode)
+    projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode)
 
     return projected_img

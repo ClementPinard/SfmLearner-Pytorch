@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn.init import xavier_uniform_, zeros_
 
 
 def downsample_conv(in_planes, out_planes, kernel_size=3):
@@ -79,9 +81,9 @@ class DispNetS(nn.Module):
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-                nn.init.xavier_uniform(m.weight.data)
+                xavier_uniform_(m.weight)
                 if m.bias is not None:
-                    m.bias.data.zero_()
+                    zeros_(m.bias)
 
     def forward(self, x):
         out_conv1 = self.conv1(x)
@@ -110,19 +112,19 @@ class DispNetS(nn.Module):
         disp4 = self.alpha * self.predict_disp4(out_iconv4) + self.beta
 
         out_upconv3 = crop_like(self.upconv3(out_iconv4), out_conv2)
-        disp4_up = crop_like(nn.functional.upsample(disp4, scale_factor=2, mode='bilinear'), out_conv2)
+        disp4_up = crop_like(F.interpolate(disp4, scale_factor=2, mode='bilinear', align_corners=False), out_conv2)
         concat3 = torch.cat((out_upconv3, out_conv2, disp4_up), 1)
         out_iconv3 = self.iconv3(concat3)
         disp3 = self.alpha * self.predict_disp3(out_iconv3) + self.beta
 
         out_upconv2 = crop_like(self.upconv2(out_iconv3), out_conv1)
-        disp3_up = crop_like(nn.functional.upsample(disp3, scale_factor=2, mode='bilinear'), out_conv1)
+        disp3_up = crop_like(F.interpolate(disp3, scale_factor=2, mode='bilinear', align_corners=False), out_conv1)
         concat2 = torch.cat((out_upconv2, out_conv1, disp3_up), 1)
         out_iconv2 = self.iconv2(concat2)
         disp2 = self.alpha * self.predict_disp2(out_iconv2) + self.beta
 
         out_upconv1 = crop_like(self.upconv1(out_iconv2), x)
-        disp2_up = crop_like(nn.functional.upsample(disp2, scale_factor=2, mode='bilinear'), x)
+        disp2_up = crop_like(F.interpolate(disp2, scale_factor=2, mode='bilinear', align_corners=False), x)
         concat1 = torch.cat((out_upconv1, disp2_up), 1)
         out_iconv1 = self.iconv1(concat1)
         disp1 = self.alpha * self.predict_disp1(out_iconv1) + self.beta

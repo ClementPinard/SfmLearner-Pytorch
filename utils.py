@@ -36,8 +36,9 @@ def save_path_formatter(args, parser):
 
 
 def tensor2array(tensor, max_value=255, colormap='rainbow'):
+    tensor = tensor.detach().cpu()
     if max_value is None:
-        max_value = tensor.max()
+        max_value = tensor.max().item()
     if tensor.ndimension() == 2 or tensor.size(0) == 1:
         try:
             import cv2
@@ -56,10 +57,11 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
             if tensor.ndimension() == 2:
                 tensor.unsqueeze_(2)
             array = (tensor.expand(tensor.size(0), tensor.size(1), 3).numpy()/max_value).clip(0,1)
+        array = array.transpose(2, 0, 1)
 
     elif tensor.ndimension() == 3:
         assert(tensor.size(0) == 3)
-        array = 0.5 + tensor.numpy().transpose(1, 2, 0)*0.5
+        array = 0.5 + tensor.numpy()*0.5
     return array
 
 

@@ -15,21 +15,21 @@ Pytorch implementation : Clément Pinard (clement.pinard@ensta-paristech.fr)
 ![sample_results](misc/cityscapes_sample_results.gif)
 
 ## Preamble
-This codebase was developed and tested with Pytorch 0.2, CUDA 8.0 and Ubuntu 16.04. Original code was developped in tensorflow, you can access it [here](https://github.com/tinghuiz/SfMLearner)
+This codebase was developed and tested with Pytorch 0.4.1, CUDA 9.1 and Ubuntu 16.04. Original code was developped in tensorflow, you can access it [here](https://github.com/tinghuiz/SfMLearner)
 
 ## Prerequisite
 
 ```bash
-[sudo] pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 or install manually the following packages :
 
 ```
-pytorch 0.3
+pytorch >= 0.4.1
+imageio
 scipy
 argparse
-tensorboard-pytorch
 tensorboardX
 blessings
 progressbar2

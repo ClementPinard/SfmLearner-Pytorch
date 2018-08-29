@@ -1,6 +1,7 @@
+torch >= 0.4.1
+imageio
 scipy
 argparse
-tensorboard-pytorch
 tensorboardX
 blessings
 progressbar2

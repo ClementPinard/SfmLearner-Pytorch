@@ -1,21 +1,8 @@
 import torch.utils.data as data
 import numpy as np
-from scipy.misc import imread
+from imageio import imread
 from path import Path
 import random
-
-
-def crawl_folders(folders_list, sequence_length):
-        sequence_set = []
-        demi_length = (sequence_length-1)//2
-        for folder in folders_list:
-            intrinsics = [np.genfromtxt(cam_file, delimiter=',').astype(np.float32).reshape((3, 3)) for cam_file in sorted(folder.files('*_cam.txt'))]
-            imgs = sorted(folder.files('*.jpg'))
-            for i in range(len(imgs)):
-                sample = {'intrinsics': intrinsics[i], 'img_stack': imgs[i]}
-                sequence_set.append(sample)
-        random.shuffle(sequence_set)
-        return sequence_set
 
 
 def load_as_float(path, sequence_length):

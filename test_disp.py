@@ -28,7 +28,10 @@ parser.add_argument("--output-dir", default=None, type=str, help="Output directo
 parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI', 'stillbox'])
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
+@torch.no_grad()
 def main():
     args = parser.parse_args()
     if args.gt_type == 'KITTI':
@@ -36,7 +39,7 @@ def main():
     elif args.gt_type == 'stillbox':
         from stillbox_eval.depth_evaluation_utils import test_framework_stillbox as test_framework
 
-    disp_net = DispNetS().cuda()
+    disp_net = DispNetS().to(device)
     weights = torch.load(args.pretrained_dispnet)
     disp_net.load_state_dict(weights['state_dict'])
     disp_net.eval()
@@ -48,7 +51,7 @@ def main():
     else:
         weights = torch.load(args.pretrained_posenet)
         seq_length = int(weights['state_dict']['conv1.0.weight'].size(1)/3)
-        pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1, output_exp=False).cuda()
+        pose_net = PoseExpNet(nb_ref_imgs=seq_length - 1, output_exp=False).to(device)
         pose_net.load_state_dict(weights['state_dict'], strict=False)
 
     dataset_dir = Path(args.dataset_dir)
@@ -80,16 +83,15 @@ def main():
         ref_imgs = [np.transpose(img, (2,0,1)) for img in ref_imgs]
 
         tgt_img = torch.from_numpy(tgt_img).unsqueeze(0)
-        tgt_img = ((tgt_img/255 - 0.5)/0.5).cuda()
-        tgt_img_var = Variable(tgt_img, volatile=True)
+        tgt_img = ((tgt_img/255 - 0.5)/0.5).to(device)
 
-        ref_imgs_var = []
+        ref_imgs = []
         for i, img in enumerate(ref_imgs):
             img = torch.from_numpy(img).unsqueeze(0)
-            img = ((img/255 - 0.5)/0.5).cuda()
-            ref_imgs_var.append(Variable(img, volatile=True))
+            img = ((img/255 - 0.5)/0.5).to(device)
+            ref_imgs.append(img)
 
-        pred_disp = disp_net(tgt_img_var).data.cpu().numpy()[0,0]
+        pred_disp = disp_net(tgt_img).cpu().numpy()[0,0]
 
         if args.output_dir is not None:
             if j == 0:
@@ -111,10 +113,10 @@ def main():
             # Reorganize ref_imgs_var : tgt is middle frame but not necessarily the one used in DispNetS
             # (in case sample to test was in end or beginning of the image sequence)
             middle_index = seq_length//2
-            tgt = ref_imgs_var[middle_index]
-            reorganized_refs = ref_imgs_var[:middle_index] + ref_imgs_var[middle_index + 1:]
+            tgt = ref_imgs[middle_index]
+            reorganized_refs = ref_imgs[:middle_index] + ref_imgs[middle_index + 1:]
             _, poses = pose_net(tgt, reorganized_refs)
-            mean_displacement_magnitude = poses[0,:,:3].norm(2,1).mean().cpu().data[0]
+            mean_displacement_magnitude = poses[0,:,:3].norm(2,1).mean().item()
 
             scale_factor = sample['displacement'] / mean_displacement_magnitude
             errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
