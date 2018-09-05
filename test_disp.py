@@ -1,5 +1,4 @@
 import torch
-from torch.autograd import Variable
 
 from scipy.misc import imresize
 from scipy.ndimage.interpolation import zoom
@@ -85,11 +84,10 @@ def main():
         tgt_img = torch.from_numpy(tgt_img).unsqueeze(0)
         tgt_img = ((tgt_img/255 - 0.5)/0.5).to(device)
 
-        ref_imgs = []
         for i, img in enumerate(ref_imgs):
             img = torch.from_numpy(img).unsqueeze(0)
             img = ((img/255 - 0.5)/0.5).to(device)
-            ref_imgs.append(img)
+            ref_imgs[i] = img
 
         pred_disp = disp_net(tgt_img).cpu().numpy()[0,0]
 
@@ -110,7 +108,7 @@ def main():
             gt_depth = gt_depth[sample['mask']]
 
         if seq_length > 0:
-            # Reorganize ref_imgs_var : tgt is middle frame but not necessarily the one used in DispNetS
+            # Reorganize ref_imgs : tgt is middle frame but not necessarily the one used in DispNetS
             # (in case sample to test was in end or beginning of the image sequence)
             middle_index = seq_length//2
             tgt = ref_imgs[middle_index]
