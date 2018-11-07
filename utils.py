@@ -42,7 +42,7 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
     if tensor.ndimension() == 2 or tensor.size(0) == 1:
         try:
             import cv2
-            if cv2.__version__.startswith('3'):
+            if int(cv2.__version__[0]) >= 3:
                 color_cvt = cv2.COLOR_BGR2RGB
             else:  # 2.4
                 color_cvt = cv2.cv.CV_BGR2RGB
@@ -57,7 +57,6 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
             if tensor.ndimension() == 2:
                 tensor.unsqueeze_(2)
             array = (tensor.expand(tensor.size(0), tensor.size(1), 3).numpy()/max_value).clip(0,1)
-        array = array.transpose(2, 0, 1)
 
     elif tensor.ndimension() == 3:
         assert(tensor.size(0) == 3)

@@ -1,7 +1,7 @@
 import torch
 
 from imageio import imread, imsave
-from scipy import imresize
+from scipy.misc import imresize
 import numpy as np
 from path import Path
 import argparse
@@ -65,7 +65,7 @@ def main():
         tensor_img = torch.from_numpy(img).unsqueeze(0)
         tensor_img = ((tensor_img/255 - 0.5)/0.2).to(device)
 
-        output = disp_net(img)[0]
+        output = disp_net(tensor_img)[0]
 
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=None, colormap='bone')).astype(np.uint8)
