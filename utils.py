@@ -35,7 +35,7 @@ def save_path_formatter(args, parser):
     return save_path/timestamp
 
 
-def tensor2array(tensor, max_value=255, colormap='rainbow'):
+def tensor2array(tensor, max_value=255, colormap='rainbow', channel_first=True):
     tensor = tensor.detach().cpu()
     if max_value is None:
         max_value = tensor.max().item()
@@ -57,10 +57,14 @@ def tensor2array(tensor, max_value=255, colormap='rainbow'):
             if tensor.ndimension() == 2:
                 tensor.unsqueeze_(2)
             array = (tensor.expand(tensor.size(0), tensor.size(1), 3).numpy()/max_value).clip(0,1)
+        if channel_first:
+            array = array.transpose(2, 0, 1)
 
     elif tensor.ndimension() == 3:
         assert(tensor.size(0) == 3)
         array = 0.5 + tensor.numpy()*0.5
+        if not channel_first:
+            array = array.transpose(1, 2, 0)
     return array
 
 

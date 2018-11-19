@@ -309,8 +309,8 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
                 b, _, h, w = scaled_depth.size()
                 downscale = tgt_img.size(2)/h
 
-                tgt_img_scaled = F.interpolate(tgt_img, (h, w), method='area')
-                ref_imgs_scaled = [F.interpolate(ref_img, (h, w), methode='area') for ref_img in ref_imgs]
+                tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
+                ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
 
                 intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
                 intrinsics_scaled_inv = torch.cat((intrinsics_inv[:, :, 0:2]*downscale, intrinsics_inv[:, :, 2:]), dim=2)
