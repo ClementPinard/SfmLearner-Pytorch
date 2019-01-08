@@ -130,6 +130,17 @@ python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --
 |RE  | 0.0018 (std. 0.0009) | 0.0018 (std. 0.0011) | 
 
 
+## Discussion
+
+Here I try to link the issues that I think raised interesting questions about scale factor, pose inference, and training hyperparameters
+
+ - [Issue 48](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/48) : Why is target frame at the center of the sequence ?
+ - [Issue 39](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/39) : Getting pose vector without the scale factor uncertainty
+ - [Issue 46](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/46) : Is Interpolated groundtruth better than sparse groundtruth ?
+ - [Issue 45](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/45) : How come the inverse warp is absolute and pose and depth are only relative ?
+ - [Issue 32](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/32) : Discussion about validation set, and optimal batch size
+ - [Issue 25](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/25) : Why filter out static frames ?
+ - [Issue 24](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/24) : Filtering pixels out of the photometric loss
 
 ## Other Implementations
 
