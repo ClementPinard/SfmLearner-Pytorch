@@ -5,6 +5,8 @@ import torch
 from path import Path
 import datetime
 from collections import OrderedDict
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 
 
 def save_path_formatter(args, parser):
@@ -35,36 +37,47 @@ def save_path_formatter(args, parser):
     return save_path/timestamp
 
 
-def tensor2array(tensor, max_value=255, colormap='rainbow', channel_first=True):
+def high_res_colormap(low_res_cmap, resolution=1000, max_value=1):
+    # Construct the list colormap, with interpolated values for higer resolution
+    # For a linear segmented colormap, you can just specify the number of point in
+    # cm.get_cmap(name, lutsize) with the parameter lutsize
+    x = np.linspace(0,1,low_res_cmap.N)
+    low_res = low_res_cmap(x)
+    new_x = np.linspace(0,max_value,resolution)
+    high_res = np.stack([np.interp(new_x, x, low_res[:,i]) for i in range(low_res.shape[1])], axis=1)
+    return ListedColormap(high_res)
+
+
+def opencv_rainbow(resolution=1000):
+    # Construct the opencv equivalent of Rainbow
+    opencv_rainbow_data = (
+        (0.000, (1.00, 0.00, 0.00)),
+        (0.400, (1.00, 1.00, 0.00)),
+        (0.600, (0.00, 1.00, 0.00)),
+        (0.800, (0.00, 0.00, 1.00)),
+        (1.000, (0.60, 0.00, 1.00))
+    )
+
+    return LinearSegmentedColormap.from_list('opencv_rainbow', opencv_rainbow_data, resolution)
+
+
+COLORMAPS = {'rainbow': opencv_rainbow(),
+             'magma': high_res_colormap(cm.get_cmap('magma')),
+             'bone': cm.get_cmap('bone', 10000)}
+
+
+def tensor2array(tensor, max_value=None, colormap='rainbow'):
     tensor = tensor.detach().cpu()
     if max_value is None:
         max_value = tensor.max().item()
     if tensor.ndimension() == 2 or tensor.size(0) == 1:
-        try:
-            import cv2
-            if int(cv2.__version__[0]) >= 3:
-                color_cvt = cv2.COLOR_BGR2RGB
-            else:  # 2.4
-                color_cvt = cv2.cv.CV_BGR2RGB
-            if colormap == 'rainbow':
-                colormap = cv2.COLORMAP_RAINBOW
-            elif colormap == 'bone':
-                colormap = cv2.COLORMAP_BONE
-            array = (255*tensor.squeeze().numpy()/max_value).clip(0, 255).astype(np.uint8)
-            colored_array = cv2.applyColorMap(array, colormap)
-            array = cv2.cvtColor(colored_array, color_cvt).astype(np.float32)/255
-        except ImportError:
-            if tensor.ndimension() == 2:
-                tensor.unsqueeze_(2)
-            array = (tensor.expand(tensor.size(0), tensor.size(1), 3).numpy()/max_value).clip(0,1)
-        if channel_first:
-            array = array.transpose(2, 0, 1)
+        norm_array = tensor.squeeze().numpy()/max_value
+        array = COLORMAPS[colormap](norm_array).astype(np.float32)
+        array = array.transpose(2, 0, 1)
 
     elif tensor.ndimension() == 3:
         assert(tensor.size(0) == 3)
         array = 0.5 + tensor.numpy()*0.5
-        if not channel_first:
-            array = array.transpose(1, 2, 0)
     return array
 
 

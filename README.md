@@ -27,6 +27,7 @@ or install manually the following packages :
 
 ```
 pytorch >= 0.4.1
+matplotlib
 imageio
 scipy
 argparse
@@ -35,8 +36,6 @@ blessings
 progressbar2
 path.py
 ```
-
-It is also advised to have python3 bindings for opencv for tensorboard visualizations
 
 ### What has been done
 

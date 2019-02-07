@@ -269,15 +269,13 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
         tgt_img = tgt_img.to(device)
         ref_imgs = [img.to(device) for img in ref_imgs]
         intrinsics = intrinsics.to(device)
-        intrinsics_inv = intrinsics_inv.to(device)
 
         # compute output
         disparities = disp_net(tgt_img)
         depth = [1/disp for disp in disparities]
         explainability_mask, pose = pose_exp_net(tgt_img, ref_imgs)
 
-        loss_1 = photometric_reconstruction_loss(tgt_img, ref_imgs,
-                                                 intrinsics, intrinsics_inv,
+        loss_1 = photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics,
                                                  depth, explainability_mask, pose,
                                                  args.rotation_mode, args.padding_mode)
         if w2 > 0:
@@ -296,41 +294,41 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
             train_writer.add_scalar('total_loss', loss.item(), n_iter)
 
         if args.training_output_freq > 0 and n_iter % args.training_output_freq == 0:
-
             train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
 
-            for k, scaled_depth in enumerate(depth):
-                train_writer.add_image('train Dispnet Output Normalized {}'.format(k),
-                                       tensor2array(disparities[k][0], max_value=None, colormap='bone'),
-                                       n_iter)
-                train_writer.add_image('train Depth Output Normalized {}'.format(k),
-                                       tensor2array(1/disparities[k][0], max_value=None),
-                                       n_iter)
-                b, _, h, w = scaled_depth.size()
-                downscale = tgt_img.size(2)/h
-
-                tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
-                ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
-
-                intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
-                intrinsics_scaled_inv = torch.cat((intrinsics_inv[:, :, 0:2]*downscale, intrinsics_inv[:, :, 2:]), dim=2)
-
-                # log warped images along with explainability mask
-                for j,ref in enumerate(ref_imgs_scaled):
-                    ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j],
-                                              intrinsics_scaled, intrinsics_scaled_inv,
-                                              rotation_mode=args.rotation_mode,
-                                              padding_mode=args.padding_mode)[0]
-                    train_writer.add_image('train Warped Outputs {} {}'.format(k,j),
-                                           tensor2array(ref_warped),
+            with torch.no_grad():
+                for k, scaled_depth in enumerate(depth):
+                    train_writer.add_image('train Dispnet Output Normalized {}'.format(k),
+                                           tensor2array(disparities[k][0], max_value=None, colormap='magma'),
                                            n_iter)
-                    train_writer.add_image('train Diff Outputs {} {}'.format(k,j),
-                                           tensor2array(0.5*(tgt_img_scaled[0] - ref_warped).abs()),
+                    train_writer.add_image('train Depth Output Normalized {}'.format(k),
+                                           tensor2array(1/disparities[k][0], max_value=None),
                                            n_iter)
-                    if explainability_mask[k] is not None:
-                        train_writer.add_image('train Exp mask Outputs {} {}'.format(k,j),
-                                               tensor2array(explainability_mask[k][0,j], max_value=1, colormap='bone'),
+                    b, _, h, w = scaled_depth.size()
+                    downscale = tgt_img.size(2)/h
+
+                    tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
+                    ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
+
+                    intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
+
+                    # log warped images along with explainability mask
+                    for j,ref in enumerate(ref_imgs_scaled):
+                        ref_warped = inverse_warp(ref, scaled_depth[:,0], pose[:,j],
+                                                  intrinsics_scaled,
+                                                  rotation_mode=args.rotation_mode,
+                                                  padding_mode=args.padding_mode)[0]
+                        train_writer.add_image('train Warped Outputs {} {}'.format(k,j),
+                                               tensor2array(ref_warped),
                                                n_iter)
+                        train_writer.add_image('train Diff Outputs {} {}'.format(k,j),
+                                               tensor2array(0.5*(tgt_img_scaled[0] - ref_warped).abs()),
+                                               n_iter)
+                        if explainability_mask[k] is not None:
+                            train_writer.add_image('train Exp mask Outputs {} {}'.format(k,j),
+                                                   tensor2array(explainability_mask[k][0,j],
+                                                                max_value=1, colormap='bone'),
+                                                   n_iter)
 
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
@@ -403,7 +401,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
                     output_writers[i].add_image('val Input {}'.format(j), tensor2array(ref[0]), 1)
 
             output_writers[i].add_image('val Dispnet Output Normalized',
-                                        tensor2array(disp[0], max_value=None, colormap='bone'),
+                                        tensor2array(disp[0], max_value=None, colormap='magma'),
                                         epoch)
             output_writers[i].add_image('val Depth Output Normalized',
                                         tensor2array(1./disp[0], max_value=None),
@@ -489,11 +487,11 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[
                 depth_to_show[depth_to_show == 0] = 1000
                 disp_to_show = (1/depth_to_show).clamp(0,10)
                 output_writers[i].add_image('val target Disparity Normalized',
-                                            tensor2array(disp_to_show, max_value=None, colormap='bone'),
+                                            tensor2array(disp_to_show, max_value=None, colormap='magma'),
                                             epoch)
 
             output_writers[i].add_image('val Dispnet Output Normalized',
-                                        tensor2array(output_disp[0], max_value=None, colormap='bone'),
+                                        tensor2array(output_disp[0], max_value=None, colormap='magma'),
                                         epoch)
             output_writers[i].add_image('val Depth Output',
                                         tensor2array(output_depth[0], max_value=3),
