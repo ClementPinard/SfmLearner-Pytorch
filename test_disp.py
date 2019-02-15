@@ -25,6 +25,8 @@ parser.add_argument("--dataset-list", default=None, type=str, help="Dataset list
 parser.add_argument("--output-dir", default=None, type=str, help="Output directory for saving predictions in a big 3D numpy file")
 
 parser.add_argument("--gt-type", default='KITTI', type=str, help="GroundTruth data type", choices=['npy', 'png', 'KITTI', 'stillbox'])
+parser.add_argument("--gps", '-g', action='store_true',
+                    help='if selected, will get displacement from GPS for KITTI. Otherwise, will integrate speed')
 parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', type=str, help="images extensions to glob")
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -46,7 +48,7 @@ def main():
     if args.pretrained_posenet is None:
         print('no PoseNet specified, scale_factor will be determined by median ratio, which is kiiinda cheating\
             (but consistent with original paper)')
-        seq_length = 0
+        seq_length = 1
     else:
         weights = torch.load(args.pretrained_posenet)
         seq_length = int(weights['state_dict']['conv1.0.weight'].size(1)/3)
@@ -60,10 +62,12 @@ def main():
     else:
         test_files = [file.relpathto(dataset_dir) for file in sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])]
 
-    framework = test_framework(dataset_dir, test_files, seq_length, args.min_depth, args.max_depth)
+    framework = test_framework(dataset_dir, test_files, seq_length,
+                               args.min_depth, args.max_depth,
+                               use_gps=args.gps)
 
     print('{} files to test'.format(len(test_files)))
-    errors = np.zeros((2, 7, len(test_files)), np.float32)
+    errors = np.zeros((2, 9, len(test_files)), np.float32)
     if args.output_dir is not None:
         output_dir = Path(args.output_dir)
         output_dir.makedirs_p()
@@ -107,31 +111,31 @@ def main():
             pred_depth_zoomed = pred_depth_zoomed[sample['mask']]
             gt_depth = gt_depth[sample['mask']]
 
-        if seq_length > 0:
+        if seq_length > 1:
             # Reorganize ref_imgs : tgt is middle frame but not necessarily the one used in DispNetS
             # (in case sample to test was in end or beginning of the image sequence)
             middle_index = seq_length//2
             tgt = ref_imgs[middle_index]
             reorganized_refs = ref_imgs[:middle_index] + ref_imgs[middle_index + 1:]
             _, poses = pose_net(tgt, reorganized_refs)
-            mean_displacement_magnitude = poses[0,:,:3].norm(2,1).mean().item()
+            displacement_magnitudes = poses[0,:,:3].norm(2,1).cpu().numpy()
 
-            scale_factor = sample['displacement'] / mean_displacement_magnitude
+            scale_factor = np.mean(sample['displacements'] / displacement_magnitudes)
             errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
         scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)
         errors[1,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
     mean_errors = errors.mean(2)
-    error_names = ['abs_rel','sq_rel','rms','log_rms','a1','a2','a3']
+    error_names = ['abs_diff', 'abs_rel','sq_rel','rms','log_rms', 'abs_log', 'a1','a2','a3']
     if args.pretrained_posenet:
         print("Results with scale factor determined by PoseNet : ")
-        print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
-        print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[0]))
+        print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
+        print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[0]))
 
     print("Results with scale factor determined by GT/prediction ratio (like the original paper) : ")
-    print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
-    print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[1]))
+    print("{:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}, {:>10}".format(*error_names))
+    print("{:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}, {:10.4f}".format(*mean_errors[1]))
 
     if args.output_dir is not None:
         np.save(output_dir/'predictions.npy', predictions)
@@ -149,11 +153,14 @@ def compute_errors(gt, pred):
     rmse_log = (np.log(gt) - np.log(pred)) ** 2
     rmse_log = np.sqrt(rmse_log.mean())
 
+    abs_log = np.mean(np.abs(np.log(gt) - np.log(pred)))
+
     abs_rel = np.mean(np.abs(gt - pred) / gt)
+    abs_diff = np.mean(np.abs(gt - pred))
 
     sq_rel = np.mean(((gt - pred)**2) / gt)
 
-    return abs_rel, sq_rel, rmse, rmse_log, a1, a2, a3
+    return abs_diff, abs_rel, sq_rel, rmse, rmse_log, abs_log, a1, a2, a3
 
 
 if __name__ == '__main__':

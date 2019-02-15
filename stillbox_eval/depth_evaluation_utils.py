@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 
 class test_framework_stillbox(object):
-    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=80, step=1):
+    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=80, step=1, **kwargs):
         self.root = root
         self.min_depth, self.max_depth = min_depth, max_depth
         self.gt_files, self.img_files, self.displacements = read_scene_data(self.root, test_files, seq_length, step)
@@ -18,7 +18,7 @@ class test_framework_stillbox(object):
                 'ref': [imread(img).astype(np.float32) for img in self.img_files[i][1]],
                 'path':self.img_files[i][0],
                 'gt_depth': depth,
-                'displacement': np.array(self.displacements[i]),
+                'displacements': np.array(self.displacements[i]),
                 'mask': generate_mask(depth, self.min_depth, self.max_depth)
                 }
 
@@ -29,14 +29,10 @@ class test_framework_stillbox(object):
 def get_displacements(scene, middle_index, ref_indices):
     assert(all(i < scene['length'] and i >= 0 for i in ref_indices)), str(ref_indices)
     atomic_movement = np.linalg.norm(scene['speed'])*scene['time_step']
-    cum_speed = 0
     """in Still box, movements are rectilinear so magnitude adds up.
     I mean, this is very convenient, I wonder who is the genius who came with such a dataset"""
-    for i,index in enumerate(ref_indices):
-        if index != middle_index:
-            cum_speed += atomic_movement * abs(index - middle_index)
-
-    return cum_speed/max(len(ref_indices) - 1, 1)
+    displacements = np.abs(atomic_movement * (np.array(ref_indices) - ref_indices[middle_index]))
+    return [*displacements[:middle_index], *displacements[middle_index+1:]]
 
 
 def read_scene_data(data_root, test_list, seq_length=3, step=1):

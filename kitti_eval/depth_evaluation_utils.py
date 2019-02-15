@@ -5,13 +5,19 @@ from collections import Counter
 from path import Path
 from scipy.misc import imread
 from tqdm import tqdm
+import datetime
 
 
 class test_framework_KITTI(object):
-    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=100, step=1):
+    def __init__(self, root, test_files, seq_length=3, min_depth=1e-3, max_depth=100, step=1, use_gps=True):
         self.root = root
         self.min_depth, self.max_depth = min_depth, max_depth
-        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root, test_files, seq_length, step)
+        self.use_gps = use_gps
+        self.calib_dirs, self.gt_files, self.img_files, self.displacements, self.cams = read_scene_data(self.root,
+                                                                                                        test_files,
+                                                                                                        seq_length,
+                                                                                                        step,
+                                                                                                        self.use_gps)
 
     def __getitem__(self, i):
         tgt = imread(self.img_files[i][0]).astype(np.float32)
@@ -20,7 +26,7 @@ class test_framework_KITTI(object):
                 'ref': [imread(img).astype(np.float32) for img in self.img_files[i][1]],
                 'path':self.img_files[i][0],
                 'gt_depth': depth,
-                'displacement': np.array(self.displacements[i]),
+                'displacements': np.array(self.displacements[i]),
                 'mask': generate_mask(depth, self.min_depth, self.max_depth)
                 }
 
@@ -49,27 +55,61 @@ def getXYZ(lat, lon, alt):
     return t
 
 
-def get_displacements(oxts_root, indices, tgt_index):
-    """gets mean displacement magntidue between middle frame and other frames, this is, to a scaling factor
+def get_displacements_from_GPS(root, date, scene, indices, tgt_index, precision_warning_threshold=2):
+    """gets displacement magntidues between middle frame and other frames, this is, to a scaling factor
     the mean output PoseNet should have for translation. Since the scaling is the same factor for depth maps and
     for translations, it will be used to determine how much predicted depth should be multiplied to."""
+
     first_pose = None
-    displacement = 0
+    displacements = []
+    oxts_root = root/date/scene/'oxts'
     if len(indices) == 0:
         return 0
     reordered_indices = [indices[tgt_index]] + [*indices[:tgt_index]] + [*indices[tgt_index + 1:]]
+    already_warned = False
     for index in reordered_indices:
         oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
+
+        if not already_warned:
+            position_precision = oxts_data[23]
+            if position_precision > precision_warning_threshold:
+                print("Warning for scene {} frame {} : bad position precision from oxts ({:.2f}m). "
+                      "You might want to get displacements from speed".format(scene, index, position_precision))
+            already_warned = True
+
         lat, lon, alt = oxts_data[:3]
         pose = getXYZ(lat, lon, alt)
         if first_pose is None:
             first_pose = pose
         else:
-            displacement += np.linalg.norm(pose - first_pose)
-    return displacement / max(len(indices - 1), 1)
+            displacements.append(np.linalg.norm(pose - first_pose))
+    return displacements
 
 
-def read_scene_data(data_root, test_list, seq_length=3, step=1):
+def get_displacements_from_speed(root, date, scene, indices, tgt_index):
+    """get displacement magnitudes by integrating over speed values.
+    Might be a good alternative if the GPS is not good enough"""
+    if len(indices) == 0:
+        return []
+    oxts_root = root/date/scene/'oxts'
+    with open(oxts_root/'timestamps.txt') as f:
+        timestamps = np.array([datetime.datetime.strptime(ts[:-3], "%Y-%m-%d %H:%M:%S.%f").timestamp() for ts in f.read().splitlines()])
+    speeds = np.zeros((len(indices), 3))
+    for i, index in enumerate(indices):
+        oxts_data = np.genfromtxt(oxts_root/'data'/'{:010d}.txt'.format(index))
+        speeds[i] = oxts_data[[6,7,10]]
+    displacements = np.zeros((len(indices), 3))
+    # Perform the integration operation, using trapezoidal method
+    for i0, (i1, i2) in enumerate(zip(indices, indices[1:])):
+        displacements[i0 + 1] = displacements[i0] + 0.5*(speeds[i0] + speeds[i0 + 1]) * (timestamps[i1] - timestamps[i2])
+    # Set the origin of displacements at tgt_index
+    displacements -= displacements[tgt_index]
+    # Finally, get the displacement magnitude relative to tgt and discard the middle value (which is supposed to be 0)
+    displacements_mag = np.linalg.norm(displacements, axis=1)
+    return np.concatenate([displacements_mag[:tgt_index], displacements_mag[tgt_index + 1:]])
+
+
+def read_scene_data(data_root, test_list, seq_length=3, step=1, use_gps=True):
     data_root = Path(data_root)
     gt_files = []
     calib_dirs = []
@@ -96,10 +136,14 @@ def read_scene_data(data_root, test_list, seq_length=3, step=1):
             calib_dirs.append(data_root/date)
             im_files.append([tgt_img_path,ref_imgs_path])
             cams.append(int(cam_id[-2:]))
-            displacements.append(get_displacements(data_root/date/scene/'oxts', ref_indices, demi_length))
+
+            args = (data_root, date, scene, ref_indices, demi_length)
+            if use_gps:
+                displacements.append(get_displacements_from_GPS(*args))
+            else:
+                displacements.append(get_displacements_from_speed(*args))
         else:
             print('{} missing'.format(tgt_img_path))
-    # print(num_probs, 'files missing')
 
     return calib_dirs, gt_files, im_files, displacements, cams
 
