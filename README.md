@@ -27,6 +27,7 @@ or install manually the following packages :
 
 ```
 pytorch >= 0.4.1
+pebble
 matplotlib
 imageio
 scipy

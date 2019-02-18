@@ -1,7 +1,8 @@
 import argparse
 import scipy.misc
 import numpy as np
-from joblib import Parallel, delayed
+from pebble import ProcessPool
+import sys
 from tqdm import tqdm
 from path import Path
 
@@ -78,12 +79,21 @@ def main():
                                         img_height=args.height,
                                         img_width=args.width)
 
+    n_scenes = len(data_loader.scenes)
+    print('Found {} potential scenes'.format(n_scenes))
     print('Retrieving frames')
     if args.num_threads == 1:
         for scene in tqdm(data_loader.scenes):
             dump_example(args, scene)
     else:
-        Parallel(n_jobs=args.num_threads)(delayed(dump_example)(args, scene) for scene in tqdm(data_loader.scenes))
+        with ProcessPool(max_workers=args.num_threads) as pool:
+            tasks = pool.map(dump_example, [args]*n_scenes, data_loader.scenes)
+            try:
+                for _ in tqdm(tasks.result(), total=n_scenes):
+                    pass
+            except KeyboardInterrupt as e:
+                tasks.cancel()
+                raise e
 
     print('Generating train val lists')
     np.random.seed(8964)
