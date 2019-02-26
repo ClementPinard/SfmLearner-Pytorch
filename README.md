@@ -26,7 +26,7 @@ pip3 install -r requirements.txt
 or install manually the following packages :
 
 ```
-pytorch >= 0.4.1
+pytorch >= 1.0.1
 pebble
 matplotlib
 imageio
@@ -37,6 +37,11 @@ blessings
 progressbar2
 path.py
 ```
+
+### Note
+Because it uses latests pytorch features, it is not compatible with anterior versions of pytorch.
+
+If you don't have an up to date pytorch, the tags can help you checkout the right commits corresponding to your pytorch version.
 
 ### What has been done
 
