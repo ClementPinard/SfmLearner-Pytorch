@@ -67,13 +67,16 @@ def main():
 
         output = disp_net(tensor_img)[0]
 
+        file_ = file.replace(args.dataset_dir, '')
+        file_ = '-'.join(file_.split('/'))
+                                     
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=None, colormap='bone', channel_first=False)).astype(np.uint8)
-            imsave(output_dir/'{}_disp{}'.format(file.namebase,file.ext), disp)
+            imsave(output_dir/'{}_disp{}'.format(file_,file.ext), np.transpose(disp, (1,2,0)))
         if args.output_depth:
             depth = 1/output
             depth = (255*tensor2array(depth, max_value=10, colormap='rainbow', channel_first=False)).astype(np.uint8)
-            imsave(output_dir/'{}_depth{}'.format(file.namebase,file.ext), depth)
+            imsave(output_dir/'{}_depth{}'.format(file_,file.ext), np.transpose(depth, (1,2,0)))
 
 
 if __name__ == '__main__':
