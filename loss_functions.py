@@ -20,13 +20,16 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics,
         ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
         intrinsics_scaled = torch.cat((intrinsics[:, 0:2]/downscale, intrinsics[:, 2:]), dim=1)
 
+        warped_imgs = []
+        diff_maps = []
+
         for i, ref_img in enumerate(ref_imgs_scaled):
             current_pose = pose[:, i]
 
-            ref_img_warped = inverse_warp(ref_img, depth[:,0], current_pose,
-                                          intrinsics_scaled, rotation_mode, padding_mode)
-            out_of_bound = 1 - (ref_img_warped == 0).prod(1, keepdim=True).type_as(ref_img_warped)
-            diff = (tgt_img_scaled - ref_img_warped) * out_of_bound
+            ref_img_warped, valid_points = inverse_warp(ref_img, depth[:,0], current_pose,
+                                                        intrinsics_scaled,
+                                                        rotation_mode, padding_mode)
+            diff = (tgt_img_scaled - ref_img_warped) * valid_points.unsqueeze(1).float()
 
             if explainability_mask is not None:
                 diff = diff * explainability_mask[:,i:i+1].expand_as(diff)
@@ -34,17 +37,24 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics,
             reconstruction_loss += diff.abs().mean()
             assert((reconstruction_loss == reconstruction_loss).item() == 1)
 
-        return reconstruction_loss
+            warped_imgs.append(ref_img_warped[0])
+            diff_maps.append(diff[0])
 
+        return reconstruction_loss, warped_imgs, diff_maps
+
+    warped_results, diff_results = [], []
     if type(explainability_mask) not in [tuple, list]:
         explainability_mask = [explainability_mask]
     if type(depth) not in [list, tuple]:
         depth = [depth]
 
-    loss = 0
+    total_loss = 0
     for d, mask in zip(depth, explainability_mask):
-        loss += one_scale(d, mask)
-    return loss
+        loss, warped, diff = one_scale(d, mask)
+        total_loss += loss
+        warped_results.append(warped)
+        diff_results.append(diff)
+    return loss, warped_results, diff_results
 
 
 def explainability_loss(mask):

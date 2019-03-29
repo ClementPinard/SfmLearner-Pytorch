@@ -64,11 +64,6 @@ def cam2pixel(cam_coords, proj_c2p_rot, proj_c2p_tr, padding_mode):
 
     X_norm = 2*(X / Z)/(w-1) - 1  # Normalized, -1 if on extreme left, 1 if on extreme right (x = w-1) [B, H*W]
     Y_norm = 2*(Y / Z)/(h-1) - 1  # Idem [B, H*W]
-    if padding_mode == 'zeros':
-        X_mask = ((X_norm > 1)+(X_norm < -1)).detach()
-        X_norm[X_mask] = 2  # make sure that no point in warped image is a combinaison of im and gray
-        Y_mask = ((Y_norm > 1)+(Y_norm < -1)).detach()
-        Y_norm[Y_mask] = 2
 
     pixel_coords = torch.stack([X_norm, Y_norm], dim=2)  # [B, H*W, 2]
     return pixel_coords.reshape(b,h,w,2)
@@ -167,7 +162,8 @@ def inverse_warp(img, depth, pose, intrinsics, rotation_mode='euler', padding_mo
         pose: 6DoF pose parameters from target to source -- [B, 6]
         intrinsics: camera intrinsic matrix -- [B, 3, 3]
     Returns:
-        Source image warped to the target image plane
+        projected_img: Source image warped to the target image plane
+        valid_points: Boolean array indicating point validity
     """
     check_sizes(img, 'img', 'B3HW')
     check_sizes(depth, 'depth', 'BHW')
@@ -183,7 +179,10 @@ def inverse_warp(img, depth, pose, intrinsics, rotation_mode='euler', padding_mo
     # Get projection matrix for tgt camera frame to source pixel frame
     proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
 
-    src_pixel_coords = cam2pixel(cam_coords, proj_cam_to_src_pixel[:,:,:3], proj_cam_to_src_pixel[:,:,-1:], padding_mode)  # [B,H,W,2]
+    rot, tr = proj_cam_to_src_pixel[:,:,:3], proj_cam_to_src_pixel[:,:,-1:]
+    src_pixel_coords = cam2pixel(cam_coords, rot, tr, padding_mode)  # [B,H,W,2]
     projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode)
 
-    return projected_img
+    valid_points = src_pixel_coords.abs().max(dim=-1)[0] <= 1
+
+    return projected_img, valid_points
