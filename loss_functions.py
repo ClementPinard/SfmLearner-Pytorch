@@ -54,7 +54,7 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics,
         total_loss += loss
         warped_results.append(warped)
         diff_results.append(diff)
-    return loss, warped_results, diff_results
+    return total_loss, warped_results, diff_results
 
 
 def explainability_loss(mask):
