@@ -10,7 +10,6 @@ import torch.utils.data
 import custom_transforms
 import models
 from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
-from inverse_warp import inverse_warp
 
 from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss, compute_errors
 from logger import TermLogger, AverageMeter
@@ -89,12 +88,7 @@ def main():
     if args.evaluate:
         args.epochs = 0
 
-    training_writer = SummaryWriter(args.save_path)
-    output_writers = []
-    if args.log_output:
-        for i in range(3):
-            output_writers.append(SummaryWriter(args.save_path/'valid'/str(i)))
-
+    tb_writer = SummaryWriter(args.save_path)
     # Data loading code
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
                                             std=[0.5, 0.5, 0.5])
@@ -194,11 +188,11 @@ def main():
     if args.pretrained_disp or args.evaluate:
         logger.reset_valid_bar()
         if args.with_gt:
-            errors, error_names = validate_with_gt(args, val_loader, disp_net, 0, logger, output_writers)
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, 0, logger, tb_writer)
         else:
-            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, 0, logger, output_writers)
+            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, 0, logger, tb_writer)
         for error, name in zip(errors, error_names):
-            training_writer.add_scalar(name, error, 0)
+            tb_writer.add_scalar(name, error, 0)
         error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names[2:9], errors[2:9]))
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
@@ -207,20 +201,20 @@ def main():
 
         # train for one epoch
         logger.reset_train_bar()
-        train_loss = train(args, train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, training_writer)
+        train_loss = train(args, train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, tb_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         # evaluate on validation set
         logger.reset_valid_bar()
         if args.with_gt:
-            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers)
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer)
         else:
-            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
+            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer)
         error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
         for error, name in zip(errors, error_names):
-            training_writer.add_scalar(name, error, epoch)
+            tb_writer.add_scalar(name, error, epoch)
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
         decisive_error = errors[1]
@@ -246,7 +240,7 @@ def main():
     logger.epoch_bar.finish()
 
 
-def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, train_writer):
+def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, tb_writer):
     global n_iter, device
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -287,16 +281,16 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
         loss = w1*loss_1 + w2*loss_2 + w3*loss_3
 
         if log_losses:
-            train_writer.add_scalar('photometric_error', loss_1.item(), n_iter)
+            tb_writer.add_scalar('photometric_error', loss_1.item(), n_iter)
             if w2 > 0:
-                train_writer.add_scalar('explanability_loss', loss_2.item(), n_iter)
-            train_writer.add_scalar('disparity_smoothness_loss', loss_3.item(), n_iter)
-            train_writer.add_scalar('total_loss', loss.item(), n_iter)
+                tb_writer.add_scalar('explanability_loss', loss_2.item(), n_iter)
+            tb_writer.add_scalar('disparity_smoothness_loss', loss_3.item(), n_iter)
+            tb_writer.add_scalar('total_loss', loss.item(), n_iter)
 
         if log_output:
-            train_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
+            tb_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
             for k, scaled_maps in enumerate(zip(depth, disparities, warped, diff, explainability_mask)):
-                log_output_tensorboard(train_writer, "train", k, n_iter, *scaled_maps)
+                log_output_tensorboard(tb_writer, "train", 0, k, n_iter, *scaled_maps)
 
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
@@ -325,11 +319,11 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
 
 
 @torch.no_grad()
-def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, output_writers=[]):
+def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer, sample_nb_to_log=3):
     global device
     batch_time = AverageMeter()
     losses = AverageMeter(i=3, precision=4)
-    log_outputs = len(output_writers) > 0
+    log_outputs = sample_nb_to_log > 0
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
     poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1),6))
     disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
@@ -362,13 +356,13 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
             loss_2 = 0
         loss_3 = smooth_loss(depth).item()
 
-        if log_outputs and i < len(output_writers):  # log first output of first batches
+        if log_outputs and i < sample_nb_to_log - 1:  # log first output of first batches
             if epoch == 0:
                 for j,ref in enumerate(ref_imgs):
-                    output_writers[i].add_image('val Input {}'.format(j), tensor2array(tgt_img[0]), 0)
-                    output_writers[i].add_image('val Input {}'.format(j), tensor2array(ref[0]), 1)
+                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
+                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
 
-            log_output_tensorboard(output_writers[i], 'val', '', epoch, 1./disp, disp, warped, diff, explainability_mask)
+            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped, diff, explainability_mask)
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
@@ -396,19 +390,19 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
         elif args.rotation_mode == 'quat':
             coeffs_names.extend(['qx', 'qy', 'qz'])
         for i in range(poses.shape[1]):
-            output_writers[0].add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
-        output_writers[0].add_histogram('disp_values', disp_values, epoch)
+            tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
+        tb_writer.add_histogram('disp_values', disp_values, epoch)
     logger.valid_bar.update(len(val_loader))
     return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
 
 
 @torch.no_grad()
-def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[]):
+def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sample_nb_to_log=3):
     global device
     batch_time = AverageMeter()
     error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
     errors = AverageMeter(i=len(error_names))
-    log_outputs = len(output_writers) > 0
+    log_outputs = sample_nb_to_log > 0
 
     # switch to evaluate mode
     disp_net.eval()
@@ -423,25 +417,25 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers=[
         output_disp = disp_net(tgt_img)
         output_depth = 1/output_disp[:,0]
 
-        if log_outputs and i < len(output_writers):
+        if log_outputs and i < sample_nb_to_log:
             if epoch == 0:
-                output_writers[i].add_image('val Input', tensor2array(tgt_img[0]), 0)
+                tb_writer.add_image('val Input/{}'.format(i), tensor2array(tgt_img[0]), 0)
                 depth_to_show = depth[0]
-                output_writers[i].add_image('val target Depth',
-                                            tensor2array(depth_to_show, max_value=10),
-                                            epoch)
+                tb_writer.add_image('val target Depth Normalized/{}'.format(i),
+                                    tensor2array(depth_to_show, max_value=None),
+                                    epoch)
                 depth_to_show[depth_to_show == 0] = 1000
                 disp_to_show = (1/depth_to_show).clamp(0,10)
-                output_writers[i].add_image('val target Disparity Normalized',
-                                            tensor2array(disp_to_show, max_value=None, colormap='magma'),
-                                            epoch)
+                tb_writer.add_image('val target Disparity Normalized/{}'.format(i),
+                                    tensor2array(disp_to_show, max_value=None, colormap='magma'),
+                                    epoch)
 
-            output_writers[i].add_image('val Dispnet Output Normalized',
-                                        tensor2array(output_disp[0], max_value=None, colormap='magma'),
-                                        epoch)
-            output_writers[i].add_image('val Depth Output',
-                                        tensor2array(output_depth[0], max_value=10),
-                                        epoch)
+            tb_writer.add_image('val Dispnet Output Normalized/{}'.format(i),
+                                tensor2array(output_disp[0], max_value=None, colormap='magma'),
+                                epoch)
+            tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
+                                tensor2array(output_depth[0], max_value=None),
+                                epoch)
 
         errors.update(compute_errors(depth, output_depth))
 

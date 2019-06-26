@@ -66,20 +66,21 @@ COLORMAPS = {'rainbow': opencv_rainbow(),
              'bone': cm.get_cmap('bone', 10000)}
 
 
-def log_output_tensorboard(writer, prefix, suffix, n_iter, depth, disp, warped, diff, mask):
+def log_output_tensorboard(writer, prefix, index, suffix, n_iter, depth, disp, warped, diff, mask):
     disp_to_show = tensor2array(disp[0], max_value=None, colormap='magma')
     depth_to_show = tensor2array(depth[0], max_value=None)
-    writer.add_image('{} Dispnet Output Normalized {}'.format(prefix, suffix), disp_to_show, n_iter)
-    writer.add_image('{} Depth Output Normalized {}'.format(prefix, suffix), depth_to_show, n_iter)
+    writer.add_image('{} Dispnet Output Normalized {}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
+    writer.add_image('{} Depth Output Normalized {}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
     # log warped images along with explainability mask
     for j, (warped_j, diff_j) in enumerate(zip(warped, diff)):
+        whole_suffix = '{} {}/{}'.format(suffix, j, index)
         warped_to_show = tensor2array(warped_j)
         diff_to_show = tensor2array(0.5*diff_j)
-        writer.add_image('{} Warped Outputs {} {}'.format(prefix, suffix, j), warped_to_show, n_iter)
-        writer.add_image('{} Diff Outputs {} {}'.format(prefix, suffix, j), diff_to_show, n_iter)
+        writer.add_image('{} Warped Outputs {}'.format(prefix, whole_suffix), warped_to_show, n_iter)
+        writer.add_image('{} Diff Outputs {}'.format(prefix, whole_suffix), diff_to_show, n_iter)
         if mask is not None:
             mask_to_show = tensor2array(mask[0,j], max_value=1, colormap='bone')
-            writer.add_image('{} Exp mask Outputs {} {}'.format(prefix, suffix, j), mask_to_show, n_iter)
+            writer.add_image('{} Exp mask Outputs {}'.format(prefix, whole_suffix), mask_to_show, n_iter)
 
 
 def tensor2array(tensor, max_value=None, colormap='rainbow'):
