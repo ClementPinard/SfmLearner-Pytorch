@@ -72,7 +72,7 @@ def log_output_tensorboard(writer, prefix, index, suffix, n_iter, depth, disp, w
     writer.add_image('{} Dispnet Output Normalized {}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
     writer.add_image('{} Depth Output Normalized {}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
     # log warped images along with explainability mask
-    for j, (warped_j, diff_j) in enumerate(zip(warped, diff)):
+    for j, (warped_j, diff_j) in enumerate(zip(warped[0], diff[0])):
         whole_suffix = '{} {}/{}'.format(suffix, j, index)
         warped_to_show = tensor2array(warped_j)
         diff_to_show = tensor2array(0.5*diff_j)
