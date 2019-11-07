@@ -63,7 +63,7 @@ def main():
         img = np.transpose(img, (2, 0, 1))
 
         tensor_img = torch.from_numpy(img).unsqueeze(0)
-        tensor_img = ((tensor_img/255 - 0.5)/0.2).to(device)
+        tensor_img = ((tensor_img/255 - 0.5)/0.5).to(device)
 
         output = disp_net(tensor_img)[0]
 
