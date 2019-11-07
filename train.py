@@ -362,7 +362,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
 
-            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped, diff, explainability_mask)
+            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped[0], diff[0], explainability_mask)
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
