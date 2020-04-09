@@ -40,7 +40,7 @@ def pixel2cam(depth, intrinsics_inv):
     return cam_coords * depth.unsqueeze(1)
 
 
-def cam2pixel(cam_coords, proj_c2p_rot, proj_c2p_tr, padding_mode):
+def cam2pixel(cam_coords, proj_c2p_rot, proj_c2p_tr):
     """Transform coordinates in the camera frame to the pixel frame.
     Args:
         cam_coords: pixel coordinates defined in the first camera coordinates system -- [B, 4, H, W]
@@ -180,8 +180,8 @@ def inverse_warp(img, depth, pose, intrinsics, rotation_mode='euler', padding_mo
     proj_cam_to_src_pixel = intrinsics @ pose_mat  # [B, 3, 4]
 
     rot, tr = proj_cam_to_src_pixel[:,:,:3], proj_cam_to_src_pixel[:,:,-1:]
-    src_pixel_coords = cam2pixel(cam_coords, rot, tr, padding_mode)  # [B,H,W,2]
-    projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode)
+    src_pixel_coords = cam2pixel(cam_coords, rot, tr)  # [B,H,W,2]
+    projected_img = F.grid_sample(img, src_pixel_coords, padding_mode=padding_mode, align_corners=True)
 
     valid_points = src_pixel_coords.abs().max(dim=-1)[0] <= 1
 

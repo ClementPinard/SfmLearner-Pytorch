@@ -34,11 +34,7 @@ def main():
     args.save_path.makedirs_p()
     torch.manual_seed(args.seed)
 
-    training_writer = SummaryWriter(args.save_path)
-    output_writers = []
-    if args.log_output:
-        for i in range(3):
-            output_writers.append(SummaryWriter(args.save_path/'valid'/str(i)))
+    tb_writer = SummaryWriter(args.save_path)
 
     # Data loading code
     normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
@@ -143,30 +139,30 @@ def main():
 
         # train for one epoch
         logger.reset_train_bar()
-        train_loss = train(args, train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, training_writer)
+        train_loss = train(args, train_loader, disp_net, pose_exp_net, optimizer, args.epoch_size, logger, tb_writer)
         logger.train_writer.write(' * Avg Loss : {:.3f}'.format(train_loss))
 
         if (epoch + 1) % 5 == 0:
             train_set.adjust = True
             logger.reset_train_bar(len(adjust_loader))
-            average_shifts = adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, training_writer)
+            average_shifts = adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, tb_writer)
             shifts_string = ' '.join(['{:.3f}'.format(s) for s in average_shifts])
             logger.train_writer.write(' * adjusted shifts, average shifts are now : {}'.format(shifts_string))
             for i, shift in enumerate(average_shifts):
-                training_writer.add_scalar('shifts{}'.format(i), shift, epoch)
+                tb_writer.add_scalar('shifts{}'.format(i), shift, epoch)
             train_set.adjust = False
 
         # evaluate on validation set
         logger.reset_valid_bar()
         if args.with_gt:
-            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, output_writers)
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer)
         else:
-            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, output_writers)
+            errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer)
         error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
         logger.valid_writer.write(' * Avg {}'.format(error_string))
 
         for error, name in zip(errors, error_names):
-            training_writer.add_scalar(name, error, epoch)
+            tb_writer.add_scalar(name, error, epoch)
 
         # Up to you to chose the most relevant error to measure your model's performance, careful some measures are to maximize (such as a1,a2,a3)
         decisive_error = errors[0]
@@ -193,12 +189,17 @@ def main():
 
 
 @torch.no_grad()
-def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, train_writer):
+def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, tb_writer):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     new_shifts = AverageMeter(args.sequence_length-1)
     pose_exp_net.train()
     poses = np.zeros(((len(adjust_loader)-1) * args.batch_size * (args.sequence_length-1),6))
+
+    mid_index = (args.sequence_length - 1)//2
+
+    target_values = np.abs(np.arange(-mid_index, mid_index + 1)) * (args.target_displacement)
+    target_values = np.concatenate([target_values[:mid_index], target_values[mid_index + 1:]])
 
     end = time.time()
 
@@ -217,8 +218,10 @@ def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, t
 
         for index, pose in zip(indices, pose_batch):
             displacements = pose[:,:3].norm(p=2, dim=1).cpu().numpy()
-            train_set.reset_shifts(index, displacements)
-            new_shifts.update(train_set.samples[index]['ref_imgs'])
+            ratio = target_values / displacements
+
+            train_set.reset_shifts(index, ratio[:mid_index], ratio[mid_index:])
+            new_shifts.update(train_set.get_shifts(index))
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -236,7 +239,7 @@ def adjust_shifts(args, train_set, adjust_loader, pose_exp_net, epoch, logger, t
     elif args.rotation_mode == 'quat':
         coeffs_names.extend(['qx', 'qy', 'qz'])
     for i in range(poses.shape[1]):
-        train_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
+        tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
 
     return new_shifts.avg
 

@@ -65,7 +65,8 @@ parser.add_argument('-p', '--photo-loss-weight', type=float, help='weight for ph
 parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for explainabilty mask loss', metavar='W', default=0)
 parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', metavar='W', default=0.1)
 parser.add_argument('--log-output', action='store_true', help='will log dispnet outputs and warped imgs at validation step')
-parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
+parser.add_argument('-f', '--training-output-freq', type=int,
+                    help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
                     metavar='N', default=0)
 
 best_error = -1
@@ -290,7 +291,7 @@ def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, log
         if log_output:
             tb_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
             for k, scaled_maps in enumerate(zip(depth, disparities, warped, diff, explainability_mask)):
-                log_output_tensorboard(tb_writer, "train", 0, k, n_iter, *scaled_maps)
+                log_output_tensorboard(tb_writer, "train", 0, " {}".format(k), n_iter, *scaled_maps)
 
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
@@ -362,7 +363,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
 
-            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped, diff, explainability_mask)
+            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped[0], diff[0], explainability_mask)
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
@@ -393,7 +394,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
             tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
         tb_writer.add_histogram('disp_values', disp_values, epoch)
     logger.valid_bar.update(len(val_loader))
-    return losses.avg, ['Total loss', 'Photo loss', 'Exp loss']
+    return losses.avg, ['Validation Total loss', 'Validation Photo loss', 'Validation Exp loss']
 
 
 @torch.no_grad()

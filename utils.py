@@ -69,8 +69,8 @@ COLORMAPS = {'rainbow': opencv_rainbow(),
 def log_output_tensorboard(writer, prefix, index, suffix, n_iter, depth, disp, warped, diff, mask):
     disp_to_show = tensor2array(disp[0], max_value=None, colormap='magma')
     depth_to_show = tensor2array(depth[0], max_value=None)
-    writer.add_image('{} Dispnet Output Normalized {}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
-    writer.add_image('{} Depth Output Normalized {}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
+    writer.add_image('{} Dispnet Output Normalized{}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
+    writer.add_image('{} Depth Output Normalized{}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
     # log warped images along with explainability mask
     for j, (warped_j, diff_j) in enumerate(zip(warped, diff)):
         whole_suffix = '{} {}/{}'.format(suffix, j, index)
