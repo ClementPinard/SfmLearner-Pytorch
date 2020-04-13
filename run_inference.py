@@ -1,7 +1,7 @@
 import torch
 
 from imageio import imread, imsave
-from scipy.misc import imresize
+from PIL import Image
 import numpy as np
 from path import Path
 import argparse
@@ -49,27 +49,30 @@ def main():
         with open(args.dataset_list, 'r') as f:
             test_files = [dataset_dir/file for file in f.read().splitlines()]
     else:
-        test_files = sum([dataset_dir.files('*.{}'.format(ext)) for ext in args.img_exts], [])
+        test_files = sum([list(dataset_dir.walkfiles('*.{}'.format(ext))) for ext in args.img_exts], [])
 
     print('{} files to test'.format(len(test_files)))
 
     for file in tqdm(test_files):
 
-        img = imread(file).astype(np.float32)
+        img = imread(file)
 
         h,w,_ = img.shape
         if (not args.no_resize) and (h != args.img_height or w != args.img_width):
-            img = imresize(img, (args.img_height, args.img_width)).astype(np.float32)
+            img = np.array(Image.fromarray(img).imresize((args.img_height, args.img_width)))
         img = np.transpose(img, (2, 0, 1))
 
-        tensor_img = torch.from_numpy(img).unsqueeze(0)
+        tensor_img = torch.from_numpy(img.astype(np.float32)).unsqueeze(0)
         tensor_img = ((tensor_img/255 - 0.5)/0.5).to(device)
 
         output = disp_net(tensor_img)[0]
 
         file_path, file_ext = file.relpath(args.dataset_dir).splitext()
-        file_name = '-'.join(file_path.splitall())
-                                     
+        print(file_path)
+        print(file_path.splitall())
+        file_name = '-'.join(file_path.splitall()[1:])
+        print(file_name)
+
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=None, colormap='bone')).astype(np.uint8)
             imsave(output_dir/'{}_disp{}'.format(file_name, file_ext), np.transpose(disp, (1,2,0)))
