@@ -1,4 +1,4 @@
-torch >= 1.0.1
+torch >= 1.4.0
 imageio
 matplotlib
 scipy
@@ -6,5 +6,5 @@ argparse
 tensorboardX
 blessings
 progressbar2
-path.py
 tqdm
+path
