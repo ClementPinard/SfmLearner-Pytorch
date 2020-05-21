@@ -68,8 +68,8 @@ class cityscapes_loader(object):
     def load_intrinsics(self, city, scene_id):
         city_name = city.basename()
         camera_folder = self.dataset_dir/'camera'/self.split/city_name
-        camera_file = camera_folder.files('{}_{}_*_camera.json'.format(city_name, scene_id))[0]
-        frame_id = camera_file.split('_')[2]
+        camera_file = camera_folder.files('{}_*_{}_camera.json'.format(city_name, scene_id))[0]
+        frame_id = camera_file.split('_')[1]
         frame_path = city/'{}_{}_{}_leftImg8bit.png'.format(city_name, frame_id, scene_id)
 
         with open(camera_file, 'r') as f:
