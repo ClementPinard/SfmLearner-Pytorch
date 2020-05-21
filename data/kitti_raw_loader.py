@@ -3,7 +3,8 @@ import numpy as np
 from path import Path
 import scipy.misc
 from collections import Counter
-
+from imageio import imread, imwrite
+from skimage.transform import resize as imresize
 
 def rotx(t):
     """Rotation about the x-axis."""
@@ -218,10 +219,10 @@ class KittiRawLoader(object):
         img_file = scene_data['dir']/'image_{}'.format(scene_data['cid'])/'data'/scene_data['frame_id'][tgt_idx]+'.png'
         if not img_file.isfile():
             return None
-        img = scipy.misc.imread(img_file)
+        img = imread(img_file)
         zoom_y = self.img_height/img.shape[0]
         zoom_x = self.img_width/img.shape[1]
-        img = scipy.misc.imresize(img, (self.img_height, self.img_width))
+        img = imresize(img, (self.img_height, self.img_width))
         return img, zoom_x, zoom_y
 
     def read_raw_calib_file(self, filepath):
