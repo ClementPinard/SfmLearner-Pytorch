@@ -5,6 +5,7 @@ from pebble import ProcessPool
 import sys
 from tqdm import tqdm
 from path import Path
+from imageio import imwrite
 
 parser = argparse.ArgumentParser()
 parser.add_argument("dataset_dir", metavar='DIR',
@@ -30,6 +31,7 @@ args = parser.parse_args()
 
 def dump_example(args, scene):
     scene_list = data_loader.collect_scenes(scene)
+    # print("scene list", scene_list, " for scene ", scene)
     for scene_data in scene_list:
         dump_dir = args.dump_root/scene_data['rel_path']
         dump_dir.makedirs_p()
@@ -44,7 +46,9 @@ def dump_example(args, scene):
         for sample in data_loader.get_scene_imgs(scene_data):
             img, frame_nb = sample["img"], sample["id"]
             dump_img_file = dump_dir/'{}.jpg'.format(frame_nb)
-            scipy.misc.imsave(dump_img_file, img)
+            dump_img_file.parent.makedirs_p()
+            imwrite(dump_img_file, img.astype(np.uint8))
+
             if "pose" in sample.keys():
                 poses.append(sample["pose"].tolist())
             if "depth" in sample.keys():
