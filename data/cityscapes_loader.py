@@ -4,7 +4,8 @@ import numpy as np
 import scipy.misc
 from path import Path
 from tqdm import tqdm
-
+from imageio import imread
+from skimage.transform import resize as imresize
 
 class cityscapes_loader(object):
     def __init__(self,
@@ -29,7 +30,7 @@ class cityscapes_loader(object):
         connex_scenes = {}
         connex_scene_data_list = []
         for f in img_files:
-            scene_id,frame_id = f.basename().split('_')[1:3]
+            frame_id, scene_id = f.basename().split('_')[1:3]
             if scene_id not in scenes.keys():
                 scenes[scene_id] = []
             scenes[scene_id].append(frame_id)
@@ -67,9 +68,9 @@ class cityscapes_loader(object):
     def load_intrinsics(self, city, scene_id):
         city_name = city.basename()
         camera_folder = self.dataset_dir/'camera'/self.split/city_name
-        camera_file = camera_folder.files('{}_{}_*_camera.json'.format(city_name, scene_id))[0]
-        frame_id = camera_file.split('_')[2]
-        frame_path = city/'{}_{}_{}_leftImg8bit.png'.format(city_name, scene_id, frame_id)
+        camera_file = camera_folder.files('{}_*_{}_camera.json'.format(city_name, scene_id))[0]
+        frame_id = camera_file.split('_')[1]
+        frame_path = city/'{}_{}_{}_leftImg8bit.png'.format(city_name, frame_id, scene_id)
 
         with open(camera_file, 'r') as f:
             camera = json.load(f)
@@ -81,7 +82,7 @@ class cityscapes_loader(object):
                                [0, fy, v0],
                                [0,  0,  1]])
 
-        img = scipy.misc.imread(frame_path)
+        img = imread(frame_path)
         h,w,_ = img.shape
         zoom_y = self.img_height/h
         zoom_x = self.img_width/w
@@ -93,14 +94,14 @@ class cityscapes_loader(object):
     def load_speed(self, city, scene_id, frame_id):
         city_name = city.basename()
         vehicle_folder = self.dataset_dir/'vehicle_sequence'/self.split/city_name
-        vehicle_file = vehicle_folder/'{}_{}_{}_vehicle.json'.format(city_name, scene_id, frame_id)
+        vehicle_file = vehicle_folder/'{}_{}_{}_vehicle.json'.format(city_name, frame_id, scene_id)
         with open(vehicle_file, 'r') as f:
             vehicle = json.load(f)
         return vehicle['speed']
 
     def get_scene_imgs(self, scene_data):
         cum_speed = np.zeros(3)
-        print(scene_data['city'].basename(), scene_data['scene_id'], scene_data['frame_ids'][0])
+        #print(scene_data['city'].basename(), scene_data['scene_id'], scene_data['frame_ids'])
         for i,frame_id in enumerate(scene_data['frame_ids']):
             cum_speed += scene_data['speeds'][i]
             speed_mag = np.linalg.norm(cum_speed)
@@ -111,10 +112,10 @@ class cityscapes_loader(object):
 
     def load_image(self, city, scene_id, frame_id):
         img_file = city/'{}_{}_{}_leftImg8bit.png'.format(city.basename(),
-                                                          scene_id,
-                                                          frame_id)
+                                                          frame_id,
+                                                          scene_id)
         if not img_file.isfile():
             return None
-        img = scipy.misc.imread(img_file)
-        img = scipy.misc.imresize(img, (self.img_height, self.img_width))[:int(self.img_height*0.75)]
+        img = imread(img_file)
+        img = imresize(img, (self.img_height, self.img_width))[:int(self.img_height*0.75)]
         return img
