@@ -223,6 +223,10 @@ class KittiRawLoader(object):
         zoom_y = self.img_height/img.shape[0]
         zoom_x = self.img_width/img.shape[1]
         img = imresize(img, (self.img_height, self.img_width))
+
+        # workaround for skimage (float [0 .. 1]) and imageio (uint8 [0 .. 255]) interoperability  
+        img = (img * 255).astype(np.uint8)
+
         return img, zoom_x, zoom_y
 
     def read_raw_calib_file(self, filepath):

@@ -118,4 +118,8 @@ class cityscapes_loader(object):
             return None
         img = imread(img_file)
         img = imresize(img, (self.img_height, self.img_width))[:int(self.img_height*0.75)]
+
+        # workaround for skimage (float [0 .. 1]) and imageio (uint8 [0 .. 255]) interoperability
+        img = (img * 255).astype(np.uint8)
+
         return img
