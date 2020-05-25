@@ -47,7 +47,7 @@ def dump_example(args, scene):
             img, frame_nb = sample["img"], sample["id"]
             dump_img_file = dump_dir/'{}.jpg'.format(frame_nb)
             dump_img_file.parent.makedirs_p()
-            imwrite(dump_img_file, img.astype(np.uint8))
+            imwrite(dump_img_file, img)
 
             if "pose" in sample.keys():
                 poses.append(sample["pose"].tolist())
