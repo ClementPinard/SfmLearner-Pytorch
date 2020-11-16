@@ -1,4 +1,5 @@
 from __future__ import division
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -89,7 +90,7 @@ def smooth_loss(pred_map):
 
 
 @torch.no_grad()
-def compute_errors(gt, pred, crop=True):
+def compute_depth_errors(gt, pred, crop=True):
     abs_diff, abs_rel, sq_rel, a1, a2, a3 = 0,0,0,0,0,0
     batch_size = gt.size(0)
 
@@ -125,3 +126,24 @@ def compute_errors(gt, pred, crop=True):
         sq_rel += torch.mean(((valid_gt - valid_pred)**2) / valid_gt)
 
     return [metric.item() / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
+
+
+@torch.no_grad()
+def compute_pose_errors(gt, pred):
+    RE = 0
+    for (current_gt, current_pred) in zip(gt, pred):
+        snippet_length = current_gt.shape[0]
+        scale_factor = torch.sum(current_gt[..., -1] * current_pred[..., -1]) / torch.sum(current_pred[..., -1] ** 2)
+        ATE = torch.norm((current_gt[..., -1] - scale_factor * current_pred[..., -1]).reshape(-1)).cpu().numpy()
+        R = current_gt[..., :3] @ current_pred[..., :3].transpose(-2, -1)
+        for gt_pose, pred_pose in zip(current_gt, current_pred):
+            # Residual matrix to which we compute angle's sin and cos
+            R = (gt_pose[:, :3] @ torch.inverse(pred_pose[:, :3])).cpu().numpy()
+            s = np.linalg.norm([R[0, 1]-R[1, 0],
+                                R[1, 2]-R[2, 1],
+                                R[0, 2]-R[2, 0]])
+            c = np.trace(R) - 1
+            # Note: we actually compute double of cos and sin, but arctan2 is invariant to scale
+            RE += np.arctan2(s, c)
+
+    return [ATE/snippet_length, RE/snippet_length]

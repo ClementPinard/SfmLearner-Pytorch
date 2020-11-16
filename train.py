@@ -11,7 +11,9 @@ import custom_transforms
 import models
 from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
 
-from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss, compute_errors
+from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
+from loss_functions import compute_depth_errors, compute_pose_errors
+from inverse_warp import pose_vec2mat
 from logger import TermLogger, AverageMeter
 from tensorboardX import SummaryWriter
 
@@ -21,8 +23,8 @@ parser = argparse.ArgumentParser(description='Structure from Motion Learner trai
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--dataset-format', default='sequential', metavar='STR',
-                    help='dataset format, stacked: stacked frames (from original TensorFlow code) \
-                    sequential: sequential folders (easier to convert to with a non KITTI/Cityscape dataset')
+                    help='dataset format, stacked: stacked frames (from original TensorFlow code) '
+                    'sequential: sequential folders (easier to convert to with a non KITTI/Cityscape dataset')
 parser.add_argument('--sequence-length', type=int, metavar='N', help='sequence length for training', default=3)
 parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], default='euler',
                     help='rotation mode for PoseExpnet : euler (yaw,pitch,roll) or quaternion (last 3 coefficients)')
@@ -30,8 +32,11 @@ parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], def
                     help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
                          ' zeros will null gradients outside target image.'
                          ' border will only null gradients of the coordinate outside (x or y)')
-parser.add_argument('--with-gt', action='store_true', help='use ground truth for validation. \
-                    You need to store it in npy 2D arrays see data/kitti_raw_loader.py for an example')
+parser.add_argument('--with-gt', action='store_true', help='use depth ground truth for validation. '
+                    'You need to store it in npy 2D arrays see data/kitti_raw_loader.py for an example')
+parser.add_argument('--with-pose', action='store_true', help='use pose ground truth for validation. '
+                    'You need to store it in text files of 12 columns see data/kitti_raw_loader.py for an example '
+                    'Note that for kitti, it is recommend to use odometry train set to test pose')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers')
 parser.add_argument('--epochs', default=200, type=int, metavar='N',
@@ -66,7 +71,8 @@ parser.add_argument('-m', '--mask-loss-weight', type=float, help='weight for exp
 parser.add_argument('-s', '--smooth-loss-weight', type=float, help='weight for disparity smoothness loss', metavar='W', default=0.1)
 parser.add_argument('--log-output', action='store_true', help='will log dispnet outputs and warped imgs at validation step')
 parser.add_argument('-f', '--training-output-freq', type=int,
-                    help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
+                    help='frequence for outputting dispnet outputs and warped imgs at training for all scales. '
+                         'if 0, will not output',
                     metavar='N', default=0)
 
 best_error = -1
@@ -113,11 +119,18 @@ def main():
 
     # if no Groundtruth is avalaible, Validation set is the same type as training set to measure photometric loss from warping
     if args.with_gt:
-        from datasets.validation_folders import ValidationSet
-        val_set = ValidationSet(
-            args.data,
-            transform=valid_transform
-        )
+        if args.with_pose:
+            from datasets.validation_folders import ValidationSetWithPose
+            val_set = ValidationSetWithPose(
+                args.data,
+                sequence_length=args.sequence_length,
+                transform=valid_transform)
+        else:
+            from datasets.validation_folders import ValidationSet
+            val_set = ValidationSet(
+                args.data,
+                transform=valid_transform
+            )
     else:
         val_set = SequenceFolder(
             args.data,
@@ -188,8 +201,10 @@ def main():
 
     if args.pretrained_disp or args.evaluate:
         logger.reset_valid_bar()
-        if args.with_gt:
-            errors, error_names = validate_with_gt(args, val_loader, disp_net, 0, logger, tb_writer)
+        if args.with_gt and args.with_pose:
+            errors, error_names = validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, 0, logger, tb_writer)
+        elif args.with_gt:
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, 0, tb_writer)
         else:
             errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, 0, logger, tb_writer)
         for error, name in zip(errors, error_names):
@@ -207,7 +222,9 @@ def main():
 
         # evaluate on validation set
         logger.reset_valid_bar()
-        if args.with_gt:
+        if args.with_gt and args.with_pose:
+            errors, error_names = validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer)
+        elif args.with_gt:
             errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer)
         else:
             errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer)
@@ -326,7 +343,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
     losses = AverageMeter(i=3, precision=4)
     log_outputs = sample_nb_to_log > 0
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
-    poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1),6))
+    poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1), 6))
     disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
 
     # switch to evaluate mode
@@ -359,7 +376,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
 
         if log_outputs and i < sample_nb_to_log - 1:  # log first output of first batches
             if epoch == 0:
-                for j,ref in enumerate(ref_imgs):
+                for j, ref in enumerate(ref_imgs):
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
                     tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
 
@@ -367,7 +384,7 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
-            poses[i * step:(i+1) * step] = pose.cpu().view(-1,6).numpy()
+            poses[i * step:(i+1) * step] = pose.cpu().view(-1, 6).numpy()
             step = args.batch_size * 3
             disp_unraveled = disp.cpu().view(args.batch_size, -1)
             disp_values[i * step:(i+1) * step] = torch.cat([disp_unraveled.min(-1)[0],
@@ -391,10 +408,104 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
         elif args.rotation_mode == 'quat':
             coeffs_names.extend(['qx', 'qy', 'qz'])
         for i in range(poses.shape[1]):
-            tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:,i], epoch)
+            tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses[:, i], epoch)
         tb_writer.add_histogram('disp_values', disp_values, epoch)
     logger.valid_bar.update(len(val_loader))
     return losses.avg, ['Validation Total loss', 'Validation Photo loss', 'Validation Exp loss']
+
+
+@torch.no_grad()
+def validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer, sample_nb_to_log=3):
+    global device
+    batch_time = AverageMeter()
+    depth_error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
+    depth_errors = AverageMeter(i=len(depth_error_names), precision=4)
+    pose_error_names = ['ATE', 'RTE']
+    pose_errors = AverageMeter(i=2, precision=4)
+    log_outputs = sample_nb_to_log > 0
+    poses_values = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1), 6))
+    disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
+
+    # switch to evaluate mode
+    disp_net.eval()
+    pose_exp_net.eval()
+
+    end = time.time()
+    logger.valid_bar.update(0)
+    for i, (tgt_img, ref_imgs, gt_depth, gt_poses) in enumerate(val_loader):
+        tgt_img = tgt_img.to(device)
+        gt_depth = gt_depth.to(device)
+        gt_poses = gt_poses.to(device)
+        ref_imgs = [img.to(device) for img in ref_imgs]
+        b = tgt_img.shape[0]
+
+        # compute output
+        output_disp = disp_net(tgt_img)
+        output_depth = 1/output_disp
+        explainability_mask, output_poses = pose_exp_net(tgt_img, ref_imgs)
+
+        reordered_output_poses = torch.cat([output_poses[:, :gt_poses.shape[1]//2],
+                                            torch.zeros(b, 1, 6).to(output_poses),
+                                            output_poses[:, gt_poses.shape[1]//2:]], dim=1)
+
+        # pose_vec2mat only takes B, 6 tensors, so we simulate a batch dimension of B * seq_length
+        unravelled_poses = reordered_output_poses.reshape(-1, 6)
+        unravelled_matrices = pose_vec2mat(unravelled_poses, rotation_mode=args.rotation_mode)
+        inv_transform_matrices = unravelled_matrices.reshape(b, -1, 3, 4)
+
+        rot_matrices = inv_transform_matrices[..., :3].transpose(-2, -1)
+        tr_vectors = -rot_matrices @ inv_transform_matrices[..., -1:]
+
+        transform_matrices = torch.cat([rot_matrices, tr_vectors], axis=-1)
+
+        first_inv_transform = inv_transform_matrices.reshape(b, -1, 3, 4)[:, :1]
+        final_poses = first_inv_transform[..., :3] @ transform_matrices
+        final_poses[..., -1:] += first_inv_transform[..., -1:]
+        final_poses = final_poses.reshape(b, -1, 3, 4)
+
+        if log_outputs and i < sample_nb_to_log - 1:  # log first output of first batches
+            if epoch == 0:
+                for j, ref in enumerate(ref_imgs):
+                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
+                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
+
+            log_output_tensorboard(tb_writer, 'val', i, '', epoch, output_depth, output_disp, None, None, explainability_mask)
+
+        if log_outputs and i < len(val_loader)-1:
+            step = args.batch_size*(args.sequence_length-1)
+            poses_values[i * step:(i+1) * step] = output_poses.cpu().view(-1, 6).numpy()
+            step = args.batch_size * 3
+            disp_unraveled = output_disp.cpu().view(args.batch_size, -1)
+            disp_values[i * step:(i+1) * step] = torch.cat([disp_unraveled.min(-1)[0],
+                                                            disp_unraveled.median(-1)[0],
+                                                            disp_unraveled.max(-1)[0]]).numpy()
+
+        depth_errors.update(compute_depth_errors(gt_depth, output_depth[:, 0]))
+        pose_errors.update(compute_pose_errors(gt_poses, final_poses))
+
+        # measure elapsed time
+        batch_time.update(time.time() - end)
+        end = time.time()
+        logger.valid_bar.update(i+1)
+        if i % args.print_freq == 0:
+            logger.valid_writer.write(
+                'valid: Time {} Abs Error {:.4f} ({:.4f}), ATE {:.4f} ({:.4f})'.format(batch_time,
+                                                                                       depth_errors.val[0],
+                                                                                       depth_errors.avg[0],
+                                                                                       pose_errors.val[0],
+                                                                                       pose_errors.avg[0]))
+    if log_outputs:
+        prefix = 'valid poses'
+        coeffs_names = ['tx', 'ty', 'tz']
+        if args.rotation_mode == 'euler':
+            coeffs_names.extend(['rx', 'ry', 'rz'])
+        elif args.rotation_mode == 'quat':
+            coeffs_names.extend(['qx', 'qy', 'qz'])
+        for i in range(poses_values.shape[1]):
+            tb_writer.add_histogram('{} {}'.format(prefix, coeffs_names[i]), poses_values[:, i], epoch)
+        tb_writer.add_histogram('disp_values', disp_values, epoch)
+    logger.valid_bar.update(len(val_loader))
+    return depth_errors.avg + pose_errors.avg, depth_error_names + pose_error_names
 
 
 @torch.no_grad()
@@ -416,7 +527,7 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sampl
 
         # compute output
         output_disp = disp_net(tgt_img)
-        output_depth = 1/output_disp[:,0]
+        output_depth = 1/output_disp[:, 0]
 
         if log_outputs and i < sample_nb_to_log:
             if epoch == 0:
@@ -426,7 +537,7 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sampl
                                     tensor2array(depth_to_show, max_value=None),
                                     epoch)
                 depth_to_show[depth_to_show == 0] = 1000
-                disp_to_show = (1/depth_to_show).clamp(0,10)
+                disp_to_show = (1/depth_to_show).clamp(0, 10)
                 tb_writer.add_image('val target Disparity Normalized/{}'.format(i),
                                     tensor2array(disp_to_show, max_value=None, colormap='magma'),
                                     epoch)
@@ -437,8 +548,7 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sampl
             tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
                                 tensor2array(output_depth[0], max_value=None),
                                 epoch)
-
-        errors.update(compute_errors(depth, output_depth))
+        errors.update(compute_depth_errors(depth, output_depth))
 
         # measure elapsed time
         batch_time.update(time.time() - end)

@@ -1,17 +1,15 @@
 import argparse
-import scipy.misc
 import numpy as np
 from pebble import ProcessPool
-import sys
 from tqdm import tqdm
 from path import Path
 from imageio import imwrite
 
 parser = argparse.ArgumentParser()
-parser.add_argument("dataset_dir", metavar='DIR',
+parser.add_argument("dataset_dir", metavar='DIR', type=Path,
                     help='path to original dataset')
-parser.add_argument("--dataset-format", type=str, default='kitti', choices=["kitti", "cityscapes"])
-parser.add_argument("--static-frames", default=None,
+parser.add_argument("--dataset-format", type=str, default='kitti', choices=["kitti_raw", "kitti_odometry", "cityscapes"])
+parser.add_argument("--static-frames", default=None, type=Path,
                     help="list of imgs to discard for being static, if not set will discard them based on speed \
                     (careful, on KITTI some frames have incorrect speed)")
 parser.add_argument("--with-depth", action='store_true',
@@ -20,7 +18,7 @@ parser.add_argument("--with-pose", action='store_true',
                     help="If available (e.g. with KITTI), will store pose ground truth along with images, for validation")
 parser.add_argument("--no-train-gt", action='store_true',
                     help="If selected, will delete ground truth depth to save space")
-parser.add_argument("--dump-root", type=str, default='dump', help="Where to dump the data")
+parser.add_argument("--dump-root", type=Path, default='dump', help="Where to dump the data")
 parser.add_argument("--height", type=int, default=128, help="image height")
 parser.add_argument("--width", type=int, default=416, help="image width")
 parser.add_argument("--depth-size-ratio", type=int, default=1, help="will divide depth size by that ratio")
@@ -67,7 +65,7 @@ def main():
 
     global data_loader
 
-    if args.dataset_format == 'kitti':
+    if args.dataset_format == 'kitti_raw':
         from kitti_raw_loader import KittiRawLoader
         data_loader = KittiRawLoader(args.dataset_dir,
                                      static_frames_file=args.static_frames,
@@ -76,6 +74,15 @@ def main():
                                      get_depth=args.with_depth,
                                      get_pose=args.with_pose,
                                      depth_size_ratio=args.depth_size_ratio)
+
+    if args.dataset_format == 'kitti_odometry':
+        from kitti_odometry_loader import KittiOdomLoader
+        data_loader = KittiOdomLoader(args.dataset_dir,
+                                      img_height=args.height,
+                                      img_width=args.width,
+                                      get_depth=args.with_depth,
+                                      get_pose=args.with_pose,
+                                      depth_size_ratio=args.depth_size_ratio)
 
     if args.dataset_format == 'cityscapes':
         from cityscapes_loader import cityscapes_loader

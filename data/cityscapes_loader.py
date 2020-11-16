@@ -1,11 +1,10 @@
 from __future__ import division
 import json
 import numpy as np
-import scipy.misc
 from path import Path
-from tqdm import tqdm
 from imageio import imread
 from skimage.transform import resize as imresize
+
 
 class cityscapes_loader(object):
     def __init__(self,
@@ -51,13 +50,13 @@ class cityscapes_loader(object):
             intrinsics = self.load_intrinsics(city, scene_id)
             for subscene in connex_scenes[scene_id]:
                 frame_speeds = [self.load_speed(city, scene_id, frame_id) for frame_id in subscene]
-                connex_scene_data_list.append({'city':city,
+                connex_scene_data_list.append({'city': city,
                                                'scene_id': scene_id,
                                                'rel_path': city.basename()+'_'+scene_id+'_'+subscene[0]+'_0',
                                                'intrinsics': intrinsics,
-                                               'frame_ids':subscene[0::2],
-                                               'speeds':frame_speeds[0::2]})
-                connex_scene_data_list.append({'city':city,
+                                               'frame_ids': subscene[0::2],
+                                               'speeds': frame_speeds[0::2]})
+                connex_scene_data_list.append({'city': city,
                                                'scene_id': scene_id,
                                                'rel_path': city.basename()+'_'+scene_id+'_'+subscene[0]+'_1',
                                                'intrinsics': intrinsics,
@@ -83,7 +82,7 @@ class cityscapes_loader(object):
                                [0,  0,  1]])
 
         img = imread(frame_path)
-        h,w,_ = img.shape
+        h, w, _ = img.shape
         zoom_y = self.img_height/h
         zoom_x = self.img_width/w
 
@@ -101,13 +100,13 @@ class cityscapes_loader(object):
 
     def get_scene_imgs(self, scene_data):
         cum_speed = np.zeros(3)
-        #print(scene_data['city'].basename(), scene_data['scene_id'], scene_data['frame_ids'])
-        for i,frame_id in enumerate(scene_data['frame_ids']):
+        # print(scene_data['city'].basename(), scene_data['scene_id'], scene_data['frame_ids'])
+        for i, frame_id in enumerate(scene_data['frame_ids']):
             cum_speed += scene_data['speeds'][i]
             speed_mag = np.linalg.norm(cum_speed)
             if speed_mag > self.min_speed:
-                yield {"img":self.load_image(scene_data['city'], scene_data['scene_id'], frame_id),
-                       "id":frame_id}
+                yield {"img": self.load_image(scene_data['city'], scene_data['scene_id'], frame_id),
+                       "id": frame_id}
                 cum_speed *= 0
 
     def load_image(self, city, scene_id, frame_id):
