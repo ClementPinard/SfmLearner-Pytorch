@@ -6,18 +6,21 @@ import random
 
 
 def crawl_folders(folders_list):
-        imgs = []
-        depth = []
-        for folder in folders_list:
-            current_imgs = sorted(folder.files('*.jpg'))
-            current_depth = []
-            for img in current_imgs:
-                d = img.dirname()/(img.name[:-4] + '.npy')
-                assert(d.isfile()), "depth file {} not found".format(str(d))
+    imgs = []
+    depth = []
+    for folder in folders_list:
+        found_imgs = sorted(folder.files('*.jpg'))
+        current_depth = []
+        current_imgs = []
+        for img in found_imgs:
+            print("bonjour")
+            d = img.dirname()/(img.stem + '.npy')
+            if d.isfile():
                 depth.append(d)
-            imgs.extend(current_imgs)
-            depth.extend(current_depth)
-        return imgs, depth
+                imgs.append(img)
+        imgs.extend(current_imgs)
+        depth.extend(current_depth)
+    return imgs, depth
 
 
 def load_as_float(path):
@@ -97,11 +100,14 @@ class ValidationSetWithPose(data.Dataset):
                 continue
             for i in range(demi_length, len(imgs)-demi_length):
                 tgt_img = imgs[i]
-                d = tgt_img.dirname()/(tgt_img.name[:-4] + '.npy')
-                assert(d.isfile()), "depth file {} not found".format(str(d))
+                d = tgt_img.dirname()/(tgt_img.stem + '.npy')
+                if not d.isfile():
+                    continue
                 sample = {'intrinsics': intrinsics, 'tgt': tgt_img, 'ref_imgs': [], 'poses': [], 'depth': d}
                 first_pose = poses_4D[i - demi_length]
                 sample['poses'] = (np.linalg.inv(first_pose) @ poses_4D[i - demi_length: i + demi_length + 1])[:, :3]
+                if np.isnan(sample['poses'].sum()):
+                    continue
                 for j in shifts:
                     sample['ref_imgs'].append(imgs[i+j])
                 sample['poses'] = np.stack(sample['poses'])
