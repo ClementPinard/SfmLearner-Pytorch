@@ -204,7 +204,7 @@ def main():
         if args.with_gt and args.with_pose:
             errors, error_names = validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, 0, logger, tb_writer)
         elif args.with_gt:
-            errors, error_names = validate_with_gt(args, val_loader, disp_net, epoch, 0, tb_writer)
+            errors, error_names = validate_with_gt(args, val_loader, disp_net, 0, logger, tb_writer)
         else:
             errors, error_names = validate_without_gt(args, val_loader, disp_net, pose_exp_net, 0, logger, tb_writer)
         for error, name in zip(errors, error_names):
@@ -342,6 +342,8 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
     batch_time = AverageMeter()
     losses = AverageMeter(i=3, precision=4)
     log_outputs = sample_nb_to_log > 0
+    # Output the logs throughout the whole dataset
+    batches_to_log = list(np.linspace(0, len(val_loader), sample_nb_to_log).astype(int))
     w1, w2, w3 = args.photo_loss_weight, args.mask_loss_weight, args.smooth_loss_weight
     poses = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1), 6))
     disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
@@ -374,13 +376,14 @@ def validate_without_gt(args, val_loader, disp_net, pose_exp_net, epoch, logger,
             loss_2 = 0
         loss_3 = smooth_loss(depth).item()
 
-        if log_outputs and i < sample_nb_to_log - 1:  # log first output of first batches
+        if log_outputs and i in batches_to_log:  # log first output of wanted batches
+            index = batches_to_log.index(i)
             if epoch == 0:
                 for j, ref in enumerate(ref_imgs):
-                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
-                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
+                    tb_writer.add_image('val Input {}/{}'.format(j, index), tensor2array(tgt_img[0]), 0)
+                    tb_writer.add_image('val Input {}/{}'.format(j, index), tensor2array(ref[0]), 1)
 
-            log_output_tensorboard(tb_writer, 'val', i, '', epoch, 1./disp, disp, warped[0], diff[0], explainability_mask)
+            log_output_tensorboard(tb_writer, 'val', index, '', epoch, 1./disp, disp, warped[0], diff[0], explainability_mask)
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
@@ -423,6 +426,8 @@ def validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, epoch, logge
     pose_error_names = ['ATE', 'RTE']
     pose_errors = AverageMeter(i=2, precision=4)
     log_outputs = sample_nb_to_log > 0
+    # Output the logs throughout the whole dataset
+    batches_to_log = list(np.linspace(0, len(val_loader), sample_nb_to_log).astype(int))
     poses_values = np.zeros(((len(val_loader)-1) * args.batch_size * (args.sequence_length-1), 6))
     disp_values = np.zeros(((len(val_loader)-1) * args.batch_size * 3))
 
@@ -463,13 +468,14 @@ def validate_with_gt_pose(args, val_loader, disp_net, pose_exp_net, epoch, logge
         final_poses[..., -1:] += first_inv_transform[..., -1:]
         final_poses = final_poses.reshape(b, -1, 3, 4)
 
-        if log_outputs and i < sample_nb_to_log - 1:  # log first output of first batches
+        if log_outputs and i in batches_to_log:  # log first output of wanted batches
+            index = batches_to_log.index(i)
             if epoch == 0:
                 for j, ref in enumerate(ref_imgs):
-                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(tgt_img[0]), 0)
-                    tb_writer.add_image('val Input {}/{}'.format(j, i), tensor2array(ref[0]), 1)
+                    tb_writer.add_image('val Input {}/{}'.format(j, index), tensor2array(tgt_img[0]), 0)
+                    tb_writer.add_image('val Input {}/{}'.format(j, index), tensor2array(ref[0]), 1)
 
-            log_output_tensorboard(tb_writer, 'val', i, '', epoch, output_depth, output_disp, None, None, explainability_mask)
+            log_output_tensorboard(tb_writer, 'val', index, '', epoch, output_depth, output_disp, None, None, explainability_mask)
 
         if log_outputs and i < len(val_loader)-1:
             step = args.batch_size*(args.sequence_length-1)
@@ -515,6 +521,8 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sampl
     error_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
     errors = AverageMeter(i=len(error_names))
     log_outputs = sample_nb_to_log > 0
+    # Output the logs throughout the whole dataset
+    batches_to_log = list(np.linspace(0, len(val_loader)-1, sample_nb_to_log).astype(int))
 
     # switch to evaluate mode
     disp_net.eval()
@@ -529,23 +537,24 @@ def validate_with_gt(args, val_loader, disp_net, epoch, logger, tb_writer, sampl
         output_disp = disp_net(tgt_img)
         output_depth = 1/output_disp[:, 0]
 
-        if log_outputs and i < sample_nb_to_log:
+        if log_outputs and i in batches_to_log:
+            index = batches_to_log.index(i)
             if epoch == 0:
-                tb_writer.add_image('val Input/{}'.format(i), tensor2array(tgt_img[0]), 0)
+                tb_writer.add_image('val Input/{}'.format(index), tensor2array(tgt_img[0]), 0)
                 depth_to_show = depth[0]
-                tb_writer.add_image('val target Depth Normalized/{}'.format(i),
+                tb_writer.add_image('val target Depth Normalized/{}'.format(index),
                                     tensor2array(depth_to_show, max_value=None),
                                     epoch)
                 depth_to_show[depth_to_show == 0] = 1000
                 disp_to_show = (1/depth_to_show).clamp(0, 10)
-                tb_writer.add_image('val target Disparity Normalized/{}'.format(i),
+                tb_writer.add_image('val target Disparity Normalized/{}'.format(index),
                                     tensor2array(disp_to_show, max_value=None, colormap='magma'),
                                     epoch)
 
-            tb_writer.add_image('val Dispnet Output Normalized/{}'.format(i),
+            tb_writer.add_image('val Dispnet Output Normalized/{}'.format(index),
                                 tensor2array(output_disp[0], max_value=None, colormap='magma'),
                                 epoch)
-            tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
+            tb_writer.add_image('val Depth Output Normalized/{}'.format(index),
                                 tensor2array(output_depth[0], max_value=None),
                                 epoch)
         errors.update(compute_depth_errors(depth, output_depth))

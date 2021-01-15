@@ -104,11 +104,13 @@ def compute_depth_errors(gt, pred, crop=True):
         y1,y2 = int(0.40810811 * gt.size(1)), int(0.99189189 * gt.size(1))
         x1,x2 = int(0.03594771 * gt.size(2)), int(0.96405229 * gt.size(2))
         crop_mask[y1:y2,x1:x2] = 1
-
+    skipped = 0
     for current_gt, current_pred in zip(gt, pred):
         valid = (current_gt > 0) & (current_gt < 80)
         if crop:
             valid = valid & crop_mask
+        if valid.sum() == 0:
+            continue
 
         valid_gt = current_gt[valid]
         valid_pred = current_pred[valid].clamp(1e-3, 80)
@@ -124,8 +126,10 @@ def compute_depth_errors(gt, pred, crop=True):
         abs_rel += torch.mean(torch.abs(valid_gt - valid_pred) / valid_gt)
 
         sq_rel += torch.mean(((valid_gt - valid_pred)**2) / valid_gt)
+    if skipped == batch_size:
+        return None
 
-    return [metric.item() / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
+    return [metric.item() / (batch_size - skipped) for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
 
 
 @torch.no_grad()
