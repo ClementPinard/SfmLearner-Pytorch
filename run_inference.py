@@ -63,15 +63,12 @@ def main():
         img = np.transpose(img, (2, 0, 1))
 
         tensor_img = torch.from_numpy(img.astype(np.float32)).unsqueeze(0)
-        tensor_img = ((tensor_img/255 - 0.5)/0.5).to(device)
+        tensor_img = ((tensor_img - 0.5)/0.5).to(device)
 
         output = disp_net(tensor_img)[0]
 
         file_path, file_ext = file.relpath(args.dataset_dir).splitext()
-        print(file_path)
-        print(file_path.splitall())
         file_name = '-'.join(file_path.splitall()[1:])
-        print(file_name)
 
         if args.output_disp:
             disp = (255*tensor2array(output, max_value=None, colormap='bone')).astype(np.uint8)
