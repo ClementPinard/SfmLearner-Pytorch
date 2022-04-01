@@ -1,6 +1,6 @@
 import torch
 
-from scipy.misc import imresize
+from skimage.transform import resize as imresize
 from scipy.ndimage.interpolation import zoom
 import numpy as np
 from path import Path
