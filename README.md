@@ -31,6 +31,7 @@ pebble
 matplotlib
 imageio
 scipy
+scikit-image
 argparse
 tensorboardX
 blessings
@@ -51,7 +52,7 @@ If you don't have an up to date pytorch, the tags can help you checkout the righ
 * In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
 * You can still choose the former stacked frames dataset format.
 * Convergence is now almost as good as original paper with same hyper parameters
-* You can know compare with groud truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
+* You can know compare with ground truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
 
 ### Differences with official Implementation
 

@@ -1,7 +1,7 @@
 import torch
 
 from skimage.transform import resize as imresize
-from scipy.ndimage.interpolation import zoom
+from scipy.ndimage import zoom
 import numpy as np
 from path import Path
 import argparse
