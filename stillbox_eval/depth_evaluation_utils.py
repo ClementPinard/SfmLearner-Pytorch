@@ -1,7 +1,7 @@
 import numpy as np
 import json
 from path import Path
-from scipy.misc import imread
+from imageio import imread
 from tqdm import tqdm
 
 

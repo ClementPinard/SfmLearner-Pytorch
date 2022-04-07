@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import Variable
 
-from scipy.misc import imresize
+from skimage.transform import resize as imresize
 import numpy as np
 from path import Path
 import argparse

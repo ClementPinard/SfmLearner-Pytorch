@@ -31,6 +31,7 @@ pebble
 matplotlib
 imageio
 scipy
+scikit-image
 argparse
 tensorboardX
 blessings
@@ -51,7 +52,7 @@ If you don't have an up to date pytorch, the tags can help you checkout the righ
 * In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
 * You can still choose the former stacked frames dataset format.
 * Convergence is now almost as good as original paper with same hyper parameters
-* You can know compare with groud truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
+* You can know compare with ground truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
 
 ### Differences with official Implementation
 
@@ -64,7 +65,7 @@ Preparation is roughly the same command as in the original code.
 
 For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-depth` option will save resized copies of groundtruth to help you setting hyper parameters. The `--with-pose` will dump the sequence pose in the same format as Odometry dataset (see pose evaluation)
 ```bash
-python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt] [--with-depth] [--with-pose]
+python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti_raw' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt] [--with-depth] [--with-pose]
 ```
 
 

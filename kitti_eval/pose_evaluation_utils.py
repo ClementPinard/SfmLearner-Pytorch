@@ -3,7 +3,7 @@
 import numpy as np
 # import pandas as pd
 from path import Path
-from scipy.misc import imread
+from imageio import imread
 from tqdm import tqdm
 
 
@@ -17,7 +17,7 @@ class test_framework_KITTI(object):
             for snippet_indices in sample_list:
                 imgs = [imread(img_list[i]).astype(np.float32) for i in snippet_indices]
 
-                poses = np.stack(pose_list[i] for i in snippet_indices)
+                poses = np.stack([pose_list[i] for i in snippet_indices])
                 first_pose = poses[0]
                 poses[:,:,-1] -= first_pose[:,-1]
                 compensated_poses = np.linalg.inv(first_pose[:,:3]) @ poses

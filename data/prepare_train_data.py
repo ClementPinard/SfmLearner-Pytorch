@@ -8,7 +8,7 @@ from imageio import imwrite
 parser = argparse.ArgumentParser()
 parser.add_argument("dataset_dir", metavar='DIR', type=Path,
                     help='path to original dataset')
-parser.add_argument("--dataset-format", type=str, default='kitti', choices=["kitti_raw", "kitti_odometry", "cityscapes"])
+parser.add_argument("--dataset-format", type=str, default='kitti_raw', choices=["kitti_raw", "kitti_odometry", "cityscapes"])
 parser.add_argument("--static-frames", default=None, type=Path,
                     help="list of imgs to discard for being static, if not set will discard them based on speed \
                     (careful, on KITTI some frames have incorrect speed)")
