@@ -75,7 +75,18 @@ def main():
                                      get_pose=args.with_pose,
                                      depth_size_ratio=args.depth_size_ratio)
 
-    if args.dataset_format == 'kitti_odometry':
+    elif args.dataset_format == 'mp3d':
+        from mp3d_loader import MP3DLoader
+        data_loader = MP3DLoader(
+            args.dataset_dir, 
+            static_frames_file=args.static_frames,
+            img_height=args.height, 
+            img_width=args.width, 
+            get_depth=args.with_depth,
+            get_pose=args.with_pose,
+            depth_size_ratio=args.depth_size_ratio)
+    
+    elif args.dataset_format == 'kitti_odometry':
         from kitti_odometry_loader import KittiOdomLoader
         data_loader = KittiOdomLoader(args.dataset_dir,
                                       img_height=args.height,
@@ -84,7 +95,7 @@ def main():
                                       get_pose=args.with_pose,
                                       depth_size_ratio=args.depth_size_ratio)
 
-    if args.dataset_format == 'cityscapes':
+    elif args.dataset_format == 'cityscapes':
         from cityscapes_loader import cityscapes_loader
         data_loader = cityscapes_loader(args.dataset_dir,
                                         img_height=args.height,
