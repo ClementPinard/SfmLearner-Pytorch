@@ -134,7 +134,10 @@ def main():
     # create model
     print("=> creating model")
 
-    disp_net = models.DispNetS().to(device)
+    if args.with_semantics:
+        disp_net = models.SemDispNetS().to(device)
+    else:
+        disp_net = models.DispNetS().to(device)
     output_exp = args.mask_loss_weight > 0
     
     if not output_exp:
@@ -276,7 +279,12 @@ def train(
         intrinsics = intrinsics.to(device)
 
         # compute output
-        disparities = disp_net(tgt_img)
+        if args.with_semantics:
+            tgt_sem_img = tgt_sem_img.to(device)
+            disparities = disp_net(tgt_img, tgt_sem_img)
+        else: 
+            disparities = disp_net(tgt_img)
+            
         depth = [1/disp for disp in disparities]
         explainability_mask, pose = pose_exp_net(tgt_img, ref_imgs)
 
@@ -301,6 +309,7 @@ def train(
 
         if log_output:
             tb_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
+            tb_writer.add_image('semantic Input', tensor2array(tgt_sem_img[0]), n_iter)
             for k, scaled_maps in enumerate(
                 zip(depth, disparities, warped, diff, explainability_mask)):
                 
@@ -373,7 +382,12 @@ def validate(
         intrinsics_inv = intrinsics_inv.to(device)
 
         # compute output
-        disp = disp_net(tgt_img)
+        if args.with_semantics:
+            tgt_sem_img = tgt_sem_img.to(device)
+            disp = disp_net(tgt_img, tgt_sem_img)
+        else:
+            disp = disp_net(tgt_img)
+            
         depth = 1/disp
         explainability_mask, pose = pose_exp_net(tgt_img, ref_imgs)
 
@@ -394,6 +408,8 @@ def validate(
                 for j, ref in enumerate(ref_imgs):
                     tb_writer.add_image(
                         'val Input {}/{}'.format(j, index), tensor2array(tgt_img[0]), 0)
+                    tb_writer.add_image(
+                        'sem Input {}/{}'.format(j, index), tensor2array(tgt_sem_img[0]), 0)
                     tb_writer.add_image(
                         'val Input {}/{}'.format(j, index), tensor2array(ref[0]), 1)
 
