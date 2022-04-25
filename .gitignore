@@ -1,3 +1,4 @@
 *.py[cod]
 __pycache__/
 checkpoints/
+data/mp3d_sfm
