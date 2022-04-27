@@ -47,7 +47,7 @@ class SemDispNetS(nn.Module):
         self.alpha = alpha
         self.beta = beta
 
-        convsize = [3, 32, 64, 128, 256, 512, 512, 512]
+        convsize = [32, 64, 128, 256, 512, 512, 512]
         
         # rgb encoding
         self.conv1 = downsample_conv(3,           convsize[0], kernel_size=7)
@@ -68,7 +68,7 @@ class SemDispNetS(nn.Module):
         self.upconv1 = upconv(upconvsize[5], upconvsize[6])
         
         # semantic encoding
-        self.sconv1 = downsample_conv(3,           convsize[0], kernel_size=7)
+        self.sconv1 = downsample_conv(1,           convsize[0], kernel_size=7)
         self.sconv2 = downsample_conv(convsize[0], convsize[1], kernel_size=5)
         self.sconv3 = downsample_conv(convsize[1], convsize[2])
         self.sconv4 = downsample_conv(convsize[2], convsize[3])
@@ -119,13 +119,13 @@ class SemDispNetS(nn.Module):
         out_conv7 = self.conv7(out_conv6)
         
         # encode semantics
-        out_sconv1 = self.conv1(sx)
-        out_sconv2 = self.conv2(out_sconv1)
-        out_sconv3 = self.conv3(out_sconv2)
-        out_sconv4 = self.conv4(out_sconv3)
-        out_sconv5 = self.conv5(out_sconv4)
-        out_sconv6 = self.conv6(out_sconv5)
-        out_sconv7 = self.conv7(out_sconv6)
+        out_sconv1 = self.sconv1(sx)
+        out_sconv2 = self.sconv2(out_sconv1)
+        out_sconv3 = self.sconv3(out_sconv2)
+        out_sconv4 = self.sconv4(out_sconv3)
+        out_sconv5 = self.sconv5(out_sconv4)
+        out_sconv6 = self.sconv6(out_sconv5)
+        out_sconv7 = self.sconv7(out_sconv6)
 
         # up-convs
         out_upconv7 = crop_like(self.upconv7(out_conv7), out_conv6)

@@ -4,22 +4,23 @@ from imageio import imread
 from path import Path
 import random
 from natsort import natsorted
-
+import torch
 
 def load_as_float(path):
     return imread(path).astype(np.float32)
 
 
-class SequenceFolder(data.Dataset):
+class SequenceFolderWithSemantics(data.Dataset):
     """A sequence data loader where the files are arranged in this way:
         data/mp3d_sfm/split/scene_name/episode_num/
-            depth/0000000.jpg
+            depth/0.jpg
             ...
-            rgb/0000000.jpg
+            rgb/0.jpg
             ...
             rgb/cam.txt
             ...
-            semantics/0000000.jpg
+            semantics/0.jpg
+            semantics/0.npy
             ..
         
         transform functions must take in a list a images and a numpy array 
@@ -55,7 +56,7 @@ class SequenceFolder(data.Dataset):
             intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             
             # TODO: use natsorted?
-            sem_imgs = natsorted(self.semantic_scenes[s].files('*.png'))
+            sem_imgs = natsorted(self.semantic_scenes[s].files('*.npy'))
             imgs = natsorted(scene.files('*.png'))
             
             if len(imgs) < sequence_length:
@@ -78,17 +79,14 @@ class SequenceFolder(data.Dataset):
     def __getitem__(self, index):
         sample = self.samples[index]
         tgt_img = load_as_float(sample['tgt'])
-        tgt_sem_img = load_as_float(sample['tgt_sem'])
+        tgt_sem_img = np.load(sample['tgt_sem'])
         
         ref_imgs = [load_as_float(ref_img) for ref_img in sample['ref_imgs']]
         if self.transform is not None:
             imgs, intrinsics = self.transform(
                 [tgt_img] + ref_imgs, np.copy(sample['intrinsics']))
             
-            sem_imgs, _ = self.transform(
-                [tgt_sem_img], np.copy(sample['intrinsics']))
-            
-            tgt_sem_img = sem_imgs[0]
+            tgt_sem_img = torch.from_numpy(tgt_sem_img).unsqueeze(0).float()
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
             

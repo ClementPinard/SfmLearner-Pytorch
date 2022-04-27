@@ -8,7 +8,7 @@ import argparse
 from tqdm import tqdm
 
 from models import PoseExpNet
-from inverse_warp import pose_vec2mat
+from utils.inverse_warp import pose_vec2mat
 
 
 parser = argparse.ArgumentParser(description='Script for PoseNet testing with corresponding groundTruth from KITTI Odometry',

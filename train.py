@@ -7,14 +7,15 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import custom_transforms
+import utils.custom_transforms as custom_transforms
 import models
-from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
 
-from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
-from loss_functions import compute_depth_errors, compute_pose_errors
-from inverse_warp import pose_vec2mat
-from logger import TermLogger, AverageMeter
+from utils.common import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
+from utils.loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
+from utils.loss_functions import compute_depth_errors, compute_pose_errors
+from utils.inverse_warp import pose_vec2mat
+from utils.logger import TermLogger, AverageMeter
+
 from tensorboardX import SummaryWriter
 
 parser = argparse.ArgumentParser(description='Structure from Motion Learner training on KITTI and CityScapes Dataset',

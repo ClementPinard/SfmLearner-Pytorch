@@ -1,4 +1,8 @@
 *.py[cod]
 __pycache__/
 checkpoints/
-data/mp3d_sfm
+data/mp3d_sfm/train
+data/mp3d_sfm/val_seen
+data/mp3d_sfm/val_unseen
+*bach/*
+samples

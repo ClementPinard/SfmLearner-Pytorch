@@ -1,5 +1,4 @@
 # python3 train.py /path/to/the/formatted/data/ --log-output
-import argparse
 import time
 import csv
 
@@ -8,86 +7,32 @@ import torch
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import custom_transforms
+import utils.custom_transforms as custom_transforms
 import models
-from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
+from utils.common import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
 
-from datasets.sequence_mp3d import SequenceFolder
-from loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
-from logger import TermLogger, AverageMeter
+from datasets.sequence_mp3d import SequenceFolderWithSemantics
+from datasets.sequence_folders import SequenceFolder
+from utils.loss_functions import photometric_reconstruction_loss, explainability_loss, smooth_loss
+from utils.logger import TermLogger, AverageMeter
+
 from tensorboardX import SummaryWriter
-
-parser = argparse.ArgumentParser(
-    description='Structure from Motion Learner training on MP3D Dataset',
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('data', metavar='DIR', help='path to dataset')
-parser.add_argument('--sequence-length', type=int, metavar='N', default=3, 
-    help='sequence length for training')
-parser.add_argument('--with-semantics', action='store_true',
-    help='include semantic information in the dataloader')
-parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], default='euler',
-    help='rotation mode for PoseExpnet : euler (yaw,pitch,roll) or quaternion (last 3 coefficients)')
-parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], default='zeros',
-    help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
-    ' zeros will null gradients outside target image.'
-    ' border will only null gradients of the coordinate outside (x or y)')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-    help='number of data loading workers')
-parser.add_argument('--epochs', default=200, type=int, metavar='N',
-    help='number of total epochs to run')
-parser.add_argument('--epoch-size', default=3000, type=int, metavar='N',
-    help='manual epoch size (will match dataset size if not set)')
-parser.add_argument('-b', '--batch-size', default=4, type=int,
-    metavar='N', help='mini-batch size')
-parser.add_argument('--lr', '--learning-rate', default=2e-4, type=float,
-    metavar='LR', help='initial learning rate')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-    help='momentum for sgd, alpha parameter for adam')
-parser.add_argument('--beta', default=0.999, type=float, metavar='M',
-    help='beta parameters for adam')
-parser.add_argument('--weight-decay', '--wd', default=0, type=float,
-    metavar='W', help='weight decay')
-parser.add_argument('--print-freq', default=10, type=int,
-    metavar='N', help='print frequency')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-    help='evaluate model on validation set')
-parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, metavar='PATH',
-    help='path to pre-trained dispnet model')
-parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None, metavar='PATH',
-    help='path to pre-trained Exp Pose net model')
-parser.add_argument('--seed', default=0, type=int, 
-    help='seed for random functions, and network initialization')
-parser.add_argument('--log-summary', default='progress_log_summary.csv', metavar='PATH',
-    help='csv where to save per-epoch train and valid stats')
-parser.add_argument('--log-full', default='progress_log_full.csv', metavar='PATH',
-    help='csv where to save per-gradient descent train stats')
-parser.add_argument('-p', '--photo-loss-weight', type=float, 
-    help='weight for photometric loss', metavar='W', default=1)
-parser.add_argument('-m', '--mask-loss-weight', type=float, 
-    help='weight for explainabilty mask loss', metavar='W', default=0.0)
-parser.add_argument('-s', '--smooth-loss-weight', type=float, 
-    help='weight for disparity smoothness loss', metavar='W', default=0.1)
-parser.add_argument('--log-output', action='store_true', 
-    help='will log dispnet outputs and warped imgs at validation step')
-parser.add_argument('-f', '--training-output-freq', type=int,
-    help='frequence for outputting dispnet outputs and warped imgs at training for all scales. '
-    'if 0, will not output', metavar='N', default=0)
 
 best_error = -1
 n_iter = 0
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-
-def main():
+def main(args):
     global best_error, n_iter, device
-
-    args = parser.parse_args()
+    
     save_path = save_path_formatter(args, parser)
     args.save_path = 'checkpoints'/save_path
     
     print('=> will save everything to {}'.format(args.save_path))
     args.save_path.makedirs_p()
+    
     torch.manual_seed(args.seed)
+    
     if args.evaluate:
         args.epochs = 0
 
@@ -102,6 +47,7 @@ def main():
         custom_transforms.ArrayToTensor(),
         normalize
     ])
+    
     # TODO: handle data augmentation
     # TODO: generate semantic masks (labels instead of rgb colors)
 
@@ -109,24 +55,35 @@ def main():
         [custom_transforms.ArrayToTensor(), normalize])
 
     print("=> fetching scenes in '{}'".format(args.data))
-    train_set = SequenceFolder(
-        args.data, transform=train_transform, seed=args.seed, train=True, 
-        sequence_length=args.sequence_length)
+    
+    if args.with_semantics:
+        train_set = SequenceFolderWithSemantics(
+            args.data, transform=train_transform, seed=args.seed, train=True, 
+            sequence_length=args.sequence_length)
 
-    val_set = SequenceFolder(
-        args.data, transform=valid_transform, seed=args.seed, train=False, 
-        sequence_length=args.sequence_length)
+        val_set = SequenceFolderWithSemantics(
+            args.data, transform=valid_transform, seed=args.seed, train=False, 
+            sequence_length=args.sequence_length)
         
-    print('{} samples found in {} train scenes'.format(len(train_set), len(train_set.scenes)))
-    print('{} samples found in {} valid scenes'.format(len(val_set), len(val_set.scenes)))
+    else:
+        train_set = SequenceFolder(
+            args.data, transform=train_transform, seed=args.seed, train=True, 
+            sequence_length=args.sequence_length)
+
+        val_set = SequenceFolder(
+            args.data, transform=valid_transform, seed=args.seed, train=False, 
+            sequence_length=args.sequence_length)
+        
+    print('\t{} samples found in {} train scenes'.format(len(train_set), len(train_set.scenes)))
+    print('\t{} samples found in {} valid scenes'.format(len(val_set), len(val_set.scenes)))
     
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=args.batch_size, shuffle=True, 
-        num_workers=args.workers, pin_memory=True)
+        num_workers=args.workers, pin_memory=args.pin_memory)
     
     val_loader = torch.utils.data.DataLoader(
         val_set, batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        num_workers=args.workers, pin_memory=args.pin_memory)
 
     if args.epoch_size == 0:
         args.epoch_size = len(train_loader)
@@ -138,8 +95,8 @@ def main():
         disp_net = models.SemDispNetS().to(device)
     else:
         disp_net = models.DispNetS().to(device)
-    output_exp = args.mask_loss_weight > 0
     
+    output_exp = args.mask_loss_weight > 0
     if not output_exp:
         print("=> no mask loss, PoseExpnet will only output pose")
     pose_exp_net = models.PoseExpNet(
@@ -265,8 +222,11 @@ def train(
     logger.train_bar.update(0)
 
     for i, batch in enumerate(train_loader):
-        tgt_img, tgt_sem_img, ref_imgs, intrinsics, intrinsics_inv = batch 
-        
+        if args.with_semantics:
+            tgt_img, tgt_sem_img, ref_imgs, intrinsics, intrinsics_inv = batch 
+        else:
+            tgt_img, ref_imgs, intrinsics, intrinsics_inv = batch 
+            
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = (
             args.training_output_freq > 0 and 
@@ -374,7 +334,10 @@ def validate(
     end = time.time()
     logger.valid_bar.update(0)
     for i, batch in enumerate(val_loader):
-        tgt_img, tgt_sem_img, ref_imgs, intrinsics, intrinsics_inv = batch
+        if args.with_semantics:
+            tgt_img, tgt_sem_img, ref_imgs, intrinsics, intrinsics_inv = batch
+        else:
+            tgt_img, ref_imgs, intrinsics, intrinsics_inv = batch
         
         tgt_img = tgt_img.to(device)
         ref_imgs = [img.to(device) for img in ref_imgs]
@@ -454,4 +417,73 @@ def validate(
         'Validation Total loss', 'Validation Photo loss', 'Validation Exp loss']
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description='Structure from Motion Learner training on MP3D Dataset',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    
+    # I/O
+    parser.add_argument('data', metavar='DIR', 
+        help='path to dataset')
+    parser.add_argument('--print-freq', type=int,  default=10, metavar='N', 
+        help='print frequency')
+    parser.add_argument('--log-summary', default='log_summary.csv', metavar='PATH',
+        help='csv where to save per-epoch train and valid stats')
+    parser.add_argument('--log-full', default='log_full.csv', metavar='PATH',
+        help='csv where to save per-gradient descent train stats')
+    parser.add_argument('--log-output', action='store_true', 
+        help='will log dispnet outputs and warped imgs at validation step')
+    parser.add_argument('--training-output-freq', type=int, default=0, metavar='N',
+        help='frequence for outputting dispnet outputs and warped imgs at training.'
+        'if 0, will not output')
+    
+    # Hyper-parameters
+    parser.add_argument('--sequence-length', type=int, default=3, metavar='N',
+        help='sequence length for training')
+    parser.add_argument('--epochs', type=int, default=200, metavar='N',
+        help='number of total epochs to run')
+    parser.add_argument('--epoch-size', type=int, default=3000,  metavar='N',
+        help='manual epoch size (will match dataset size if not set)')
+    parser.add_argument('-b', '--batch-size', type=int, default=4, metavar='N',
+        help='mini-batch size')
+    parser.add_argument('--lr', type=float, default=2e-4, metavar='LR', 
+        help='initial learning rate')
+    parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+        help='momentum for sgd, alpha parameter for adam')
+    parser.add_argument('--beta', type=float, default=0.999, metavar='M',
+        help='beta parameters for adam')
+    parser.add_argument('--weight-decay', type=float, default=0, metavar='W', 
+        help='weight decay')
+    parser.add_argument('--photo-loss-weight', type=float, default=1, metavar='W',
+        help='weight for photometric loss')
+    parser.add_argument('--mask-loss-weight', type=float, default=0.2, metavar='W',
+        help='weight for explainabilty mask loss')
+    parser.add_argument('--smooth-loss-weight', type=float, default=0.1, metavar='W',
+        help='weight for disparity smoothness loss')
+    parser.add_argument('--seed', type=int, default=0, 
+        help='seed for random functions, and network initialization')
+    
+    parser.add_argument('--with-semantics', action='store_true',
+        help='include semantic information in the dataloader')
+    parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], default='euler',
+        help='rotation mode for PoseExpnet : euler (yaw,pitch,roll) or quaternion (last 3 coefficients)')
+    parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], default='zeros',
+        help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
+        ' zeros will null gradients outside target image.'
+        ' border will only null gradients of the coordinate outside (x or y)')
+    
+    parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+        help='number of data loading workers')
+    parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
+        help='evaluate model on validation set')
+    parser.add_argument('--pin-memory', dest='pin_memory', action='store_true',
+        help='evaluate model on validation set')
+    parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, metavar='PATH',
+        help='path to pre-trained dispnet model')
+    parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None, metavar='PATH',
+        help='path to pre-trained Exp Pose net model')
+    
+    args = parser.parse_args()
+    
+    main(args)

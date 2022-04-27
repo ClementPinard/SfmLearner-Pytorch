@@ -1,16 +1,19 @@
-# SfMLearner Pytorch version
-This codebase implements the system described in the paper:
+# 16726 - Project: SemSynSin 
 
-Unsupervised Learning of Depth and Ego-Motion from Video
+This code contains the implementation for the final project of 16-726 Learning-based
+image synthesis. 
 
+The backbone of the code is based on this [repo](https://github.com/ClementPinard/SfmLearner-Pytorch), 
+which is then based on the CVPR 2017 paper: 
+
+**Unsupervised Learning of Depth and Ego-Motion from Video**
 [Tinghui Zhou](https://people.eecs.berkeley.edu/~tinghuiz/), [Matthew Brown](http://matthewalunbrown.com/research/research.html), [Noah Snavely](http://www.cs.cornell.edu/~snavely/), [David G. Lowe](http://www.cs.ubc.ca/~lowe/home.html)
-
-In CVPR 2017 (**Oral**).
 
 See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/) for more details. 
 
 Original Author : Tinghui Zhou (tinghuiz@berkeley.edu)
 Pytorch implementation : Clément Pinard (clement.pinard@ensta-paristech.fr)
+
 
 ![sample_results](misc/cityscapes_sample_results.gif)
 
