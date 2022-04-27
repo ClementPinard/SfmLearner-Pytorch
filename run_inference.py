@@ -47,6 +47,7 @@ def main(args):
             
             output_dir = base_output_dir/dir_/ep
             output_dir.makedirs_p()
+            print(f"output dir {output_dir}")
             
             input_dir = dir_/ep/'rgb'
             test_files = sum([list(input_dir.walkfiles('*.{}'.format(ext))) for ext in args.img_exts], [])
