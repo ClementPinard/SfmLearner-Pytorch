@@ -6,8 +6,8 @@ import cv2
 
 dirs = [
     'train', 
-    # 'val_seen', 
-    # 'val_unseen'
+    'val_seen', 
+    'val_unseen'
 ]
 
 for dir_ in dirs:

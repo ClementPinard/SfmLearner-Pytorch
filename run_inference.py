@@ -45,7 +45,7 @@ def main(args):
             if i > args.num_episodes:
                 break
             
-            output_dir = base_output_dir/dir_/ep
+            output_dir = base_output_dir/ep
             output_dir.makedirs_p()
             print(f"output dir {output_dir}")
             
