@@ -457,7 +457,7 @@ if __name__ == '__main__':
         help='weight decay')
     parser.add_argument('--photo-loss-weight', type=float, default=1, metavar='W',
         help='weight for photometric loss')
-    parser.add_argument('--mask-loss-weight', type=float, default=0.2, metavar='W',
+    parser.add_argument('--mask-loss-weight', type=float, default=0.0, metavar='W',
         help='weight for explainabilty mask loss')
     parser.add_argument('--smooth-loss-weight', type=float, default=0.1, metavar='W',
         help='weight for disparity smoothness loss')

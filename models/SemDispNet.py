@@ -68,7 +68,7 @@ class SemDispNetS(nn.Module):
         self.upconv1 = upconv(upconvsize[5], upconvsize[6])
         
         # semantic encoding
-        self.sconv1 = downsample_conv(1,           convsize[0], kernel_size=7)
+        self.sconv1 = downsample_conv(3,           convsize[0], kernel_size=7)
         self.sconv2 = downsample_conv(convsize[0], convsize[1], kernel_size=5)
         self.sconv3 = downsample_conv(convsize[1], convsize[2])
         self.sconv4 = downsample_conv(convsize[2], convsize[3])

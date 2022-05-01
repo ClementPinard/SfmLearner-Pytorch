@@ -56,7 +56,8 @@ class SequenceFolderWithSemantics(data.Dataset):
             intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             
             # TODO: use natsorted?
-            sem_imgs = natsorted(self.semantic_scenes[s].files('*.npy'))
+            # sem_imgs = natsorted(self.semantic_scenes[s].files('*.npy'))
+            sem_imgs = natsorted(self.semantic_scenes[s].files('*.png'))
             imgs = natsorted(scene.files('*.png'))
             
             if len(imgs) < sequence_length:
@@ -79,14 +80,19 @@ class SequenceFolderWithSemantics(data.Dataset):
     def __getitem__(self, index):
         sample = self.samples[index]
         tgt_img = load_as_float(sample['tgt'])
-        tgt_sem_img = np.load(sample['tgt_sem'])
+        # tgt_sem_img = np.load(sample['tgt_sem'])
+        tgt_sem_img = load_as_float(sample['tgt_sem'])
         
         ref_imgs = [load_as_float(ref_img) for ref_img in sample['ref_imgs']]
         if self.transform is not None:
             imgs, intrinsics = self.transform(
                 [tgt_img] + ref_imgs, np.copy(sample['intrinsics']))
             
-            tgt_sem_img = torch.from_numpy(tgt_sem_img).unsqueeze(0).float()
+            # TODO: use one-hot vectors
+            tgt_sem_img = np.transpose(tgt_sem_img, (2, 0, 1))
+            tgt_sem_img = torch.from_numpy(tgt_sem_img).float()/255
+            
+            # tgt_sem_img = torch.from_numpy(tgt_sem_img).unsqueeze(0).float()
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
             
