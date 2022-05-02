@@ -101,6 +101,18 @@ def tensor2array(tensor, max_value=None, colormap='rainbow'):
         array = 0.5 + tensor.numpy()*0.5
     return array
 
+def array2tensor(arr, rgb_max = 255.0, mean = 0.5, std = 0.5):
+    arr = np.transpose(arr / rgb_max, (2, 0, 1))
+    tensor = torch.from_numpy(arr.astype(np.float32)).unsqueeze(0)
+    tensor = ((tensor - mean ) / std)
+    return tensor
+
+def convert_depth(arr, in_max = 255, in_min = 0, out_max = 10.01, out_min = 1.5):
+    arr = np.transpose(arr, (2, 0, 1))[0]
+    arr = torch.from_numpy(arr.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+    arr = out_min + (((arr - in_min) / (in_max - in_min)) * (out_max - out_min))
+    arr = 1. / arr 
+    return arr
 
 def save_checkpoint(save_path, dispnet_state, exp_pose_state, is_best, filename='checkpoint.pth.tar'):
     file_prefixes = ['dispnet', 'exp_pose']

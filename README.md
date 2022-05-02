@@ -1,70 +1,37 @@
-# 16726 - Project: SemSynSin 
+# 16726 - Learning-based Image synthesis - Final Project 
 
-This code contains the implementation for the final project of 16-726 Learning-based
-image synthesis. 
+### SemSyn: Semantics-driven View-Synthesis 
 
-The backbone of the code is based on this [repo](https://github.com/ClementPinard/SfmLearner-Pytorch), 
-which is then based on the CVPR 2017 paper: 
+This code contains the implementation for the final project of 16-726.
 
-**Unsupervised Learning of Depth and Ego-Motion from Video**
-[Tinghui Zhou](https://people.eecs.berkeley.edu/~tinghuiz/), [Matthew Brown](http://matthewalunbrown.com/research/research.html), [Noah Snavely](http://www.cs.cornell.edu/~snavely/), [David G. Lowe](http://www.cs.ubc.ca/~lowe/home.html)
+The backbone of the code is based on this [repo](https://github.com/ClementPinard/SfmLearner-Pytorch) 
+which is implements the following paper: 
 
-See the [project webpage](https://people.eecs.berkeley.edu/~tinghuiz/projects/SfMLearner/) for more details. 
+**Unsupervised Learning of Depth and Ego-Motion from Video** by
+[Tinghui Zhou](https://people.eecs.berkeley.edu/~tinghuiz/), 
+[Matthew Brown](http://matthewalunbrown.com/research/research.html), 
+[Noah Snavely](http://www.cs.cornell.edu/~snavely/), 
+[David G. Lowe](http://www.cs.ubc.ca/~lowe/home.html)
 
-Original Author : Tinghui Zhou (tinghuiz@berkeley.edu)
-Pytorch implementation : Clément Pinard (clement.pinard@ensta-paristech.fr)
+For our project, we:
+- Extend the framework to perform view-synthesis and Structure-from-Motion on indoor environments.
+- Provide instructions and utility code needed to generate the indoor dataset.
+- Extend it to support semantic labels as inputs for predicting depth information.
+- Extend the supported loss functions.
 
-
-![sample_results](misc/cityscapes_sample_results.gif)
-
-## Preamble
-This codebase was developed and tested with Pytorch 1.0.1, CUDA 10 and Ubuntu 16.04. Original code was developped in tensorflow, you can access it [here](https://github.com/tinghuiz/SfMLearner)
-
-## Prerequisite
+## Requirements and setup
+This code was tested with Pytorch 1.11.0, CUDA 11.4 and Ubuntu 18.04. We 
+followed the setup below: 
 
 ```bash
-pip3 install -r requirements.txt
+conda create -n sfm python=3.7
+conda activate sfm
+pip install -r requirements.txt
 ```
 
-or install manually the following packages :
+## Preparing the dataset 
 
-```
-pytorch >= 1.0.1
-pebble
-matplotlib
-imageio
-scipy
-scikit-image
-argparse
-tensorboardX
-blessings
-progressbar2
-path.py
-```
 
-### Note
-Because it uses latests pytorch features, it is not compatible with anterior versions of pytorch.
-
-If you don't have an up to date pytorch, the tags can help you checkout the right commits corresponding to your pytorch version.
-
-### What has been done
-
-* Training has been tested on KITTI and CityScapes.
-* Dataset preparation has been largely improved, and now stores image sequences in folders, making sure that movement is each time big enough between each frame
-* That way, training is now significantly faster, running at ~0.14sec per step vs ~0.2s per steps initially (on a single GTX980Ti)
-* In addition you don't need to prepare data for a particular sequence length anymore as stacking is made on the fly.
-* You can still choose the former stacked frames dataset format.
-* Convergence is now almost as good as original paper with same hyper parameters
-* You can know compare with ground truth for your validation set. It is still possible to validate without, but you now can see that minimizing photometric error is not equivalent to optimizing depth map.
-
-### Differences with official Implementation
-
-* Smooth Loss is different from official repo. Instead of applying it to disparity, we apply it to depth. Original disparity smooth loss did not work well (don't know why !) and it did not even converge at all with weight values used (0.5).
-* loss is divided by `2.3` when downscaling instead of `2`. This is the results of empiric experiments, so the optimal value is clearly not carefully determined.
-* As a consequence, with a smooth loss of `2.0̀`, depth test is better, but Pose test is worse. To revert smooth loss back to original, you can change it [here](train.py#L270)
-
-## Preparing training data
-Preparation is roughly the same command as in the original code.
 
 For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-depth` option will save resized copies of groundtruth to help you setting hyper parameters. The `--with-pose` will dump the sequence pose in the same format as Odometry dataset (see pose evaluation)
 ```bash

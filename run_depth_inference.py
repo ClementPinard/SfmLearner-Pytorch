@@ -8,7 +8,7 @@ from imageio import imread, mimsave
 from tqdm import tqdm
 from natsort import natsorted
 from models import DispNetS, SemDispNetS
-from utils.common import tensor2array
+from utils.common import tensor2array, array2tensor
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -42,10 +42,8 @@ def main(args):
                 break
             
             input_dir = dir_/ep/'rgb'
-            test_files = sum([list(
-                input_dir.walkfiles('*.{}'.format(ext))) for ext in args.img_exts], [])
-            test_files = natsorted(test_files)
-
+            test_files = natsorted(input_dir.walkfiles('*.png'))
+           
             img_list = []
             for file in tqdm(test_files):
 
@@ -53,9 +51,7 @@ def main(args):
                 file_name = '-'.join(file_path.splitall()[1:])
                 
                 out_img = imread(file)
-                img = np.transpose(out_img / 255., (2, 0, 1))
-                tgt_img = torch.from_numpy(img.astype(np.float32)).unsqueeze(0)
-                tgt_img = ((tgt_img - 0.5)/0.5).to(device)
+                tgt_img = array2tensor(out_img).to(device)
                 
                 disp = disp_net(tgt_img)
                 if args.with_disp:
@@ -84,22 +80,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Depth inference script for the MP3D Sfm',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    
+    # I/O
+    parser.add_argument("--pretrained", required=True, type=str, 
+        help="path to pretrained DispNet")
+    parser.add_argument("--dataset-dir", default='./data/mp3d_sfm/val_unseen', 
+        type=str, help="Dataset directory")
+    parser.add_argument("--output-dir", default='output', type=str,  
+        help="Output directory")
+    
+    # Other parameters
     parser.add_argument("--with-disp", action='store_true', 
         help='append disparities to output video')
     parser.add_argument("--with-depth", action='store_true', 
         help='append depth to output video')
     parser.add_argument("--with-semantics", action='store_true', 
         help='use network with semantics')
-    parser.add_argument("--pretrained", required=True, type=str, 
-        help="path to pretrained DispNet")
     parser.add_argument("--num-episodes", type=int, default=2, 
         help="number of episodes to run")
-    parser.add_argument("--dataset-dir", default='.', type=str, 
-        help="Dataset directory")
-    parser.add_argument("--output-dir", default='output', type=str,  
-        help="Output directory")
-    parser.add_argument("--img-exts", default=['png', 'jpg', 'bmp'], nargs='*', 
-        type=str, help="images extensions to glob")
 
     args = parser.parse_args()
         

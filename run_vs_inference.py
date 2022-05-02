@@ -2,29 +2,29 @@ import argparse
 import numpy as np
 import os
 import torch
+torch.set_printoptions(precision=5, sci_mode=False)
 
 from imageio import imread, mimsave
 from path import Path
 from natsort import natsorted
 
 from models import PoseExpNet, DispNetS, SemDispNetS
-from utils.common import convert_depth, tensor2array, array2tensor
+from utils.common import tensor2array, array2tensor
 from utils.loss_functions import photometric_reconstruction_loss
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 @torch.no_grad()
 def main(args):
-    # If using predicted depth for testing the pose network
-    if args.use_pred_depth:
-        if args.with_semantics:
-            disp_net = SemDispNetS().to(device)
-        else:
-            disp_net = DispNetS().to(device)
-        
-        disp_weights = torch.load(args.pretrained_disp)
-        disp_net.load_state_dict(disp_weights['state_dict'])
-        disp_net.eval()
+    # Initialize depth network 
+    if args.with_semantics:
+        disp_net = SemDispNetS().to(device)
+    else:
+        disp_net = DispNetS().to(device)
+    
+    disp_weights = torch.load(args.pretrained_disp)
+    disp_net.load_state_dict(disp_weights['state_dict'])
+    disp_net.eval()
     
     # Initialize pose network
     pose_net = PoseExpNet().to(device)
@@ -55,52 +55,46 @@ def main(args):
             rgb_input_dir = dir_/ep/'rgb'
             rgb_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
             
-            depth_input_dir = dir_/ep/'depth'
-            depth_test_files = natsorted(depth_input_dir.walkfiles('*.png'))
-            
             img_list = []
             sequence = [-1, 1]
+            
+            # initial image is the ground truth image
+            gt_img = imread(rgb_test_files[0])
+            tgt_img = array2tensor(gt_img).to(device)
+            
             for i in range(1, len(rgb_test_files)-1):   
-                             
-                # target image
-                out_img = imread(rgb_test_files[i])
-                tgt_img = array2tensor(out_img).to(device)
                 
                 # source images
-                seq_imgs = []
                 ref_imgs = []
+                seq_imgs = []
                 for s in sequence:
                     simg_ = imread(rgb_test_files[i+s])
-                    simg = array2tensor(simg_)
-                    seq_imgs.append(simg_)
+                    simg = array2tensor(simg_).to(device)
                     ref_imgs.append(simg)
+                    seq_imgs.append(simg_)
                     
                 # depth 
-                if args.use_gt_depth:
-                    # using ground truth depth 
-                    depth = imread(depth_test_files[i])
-                    depth = convert_depth(depth).to(device)
-                else:
-                    # using predicted depth 
-                    disp = disp_net(tgt_img)
-                    depth = (1. / disp)            
+                disp = disp_net(tgt_img)
+                depth = (1. / disp)            
                 
                 # pose
                 expmask, pose = pose_net(tgt_img, ref_imgs)
+                print(pose)
                 
                 # warped
                 _, warped, _ = photometric_reconstruction_loss(
                     tgt_img, ref_imgs, K, depth, expmask, pose, 'euler', 'zeros')
                 
-                warped = 255 * tensor2array(warped[0][1], max_value=1)
-                warped = np.transpose(warped, (1, 2, 0)).astype(np.uint8)
+                pred = 255 * tensor2array(warped[0][1], max_value=1)
+                pred = np.transpose(pred, (1, 2, 0)).astype(np.uint8)
                 
-                output_img = np.concatenate((out_img, warped, seq_imgs[1]), axis=1)
+                output_img = np.concatenate((gt_img, pred, seq_imgs[1]), axis=1)
                 img_list.append(output_img)
                 
-                file_path, _ = rgb_test_files[i].relpath(args.dataset_dir).splitext()
-                file_name = '-'.join(file_path.splitall()[1:])
-                
+                tgt_img = warped[0][1].detach().clone().unsqueeze(0)
+            
+            file_path, _ = rgb_test_files[i].relpath(args.dataset_dir).splitext()
+            file_name = '-'.join(file_path.splitall()[1:])
             mimsave(base_output_dir/'ep-{}_{}.gif'.format(ep, file_name), 
                 img_list, duration=2.0)
                 
@@ -125,10 +119,6 @@ if __name__ == '__main__':
         help="Output directory")
     
     # Other parameters
-    parser.add_argument("--use-gt-depth", action='store_true', 
-        help='use ground truth depth to test poses')
-    parser.add_argument("--use-pred-depth", action='store_true',
-        help='use predicted depth')
     parser.add_argument("--with-semantics", action='store_true', 
         help='Use SemDispNet or DispNet')
     parser.add_argument("--num-episodes", default=2, type=int,
