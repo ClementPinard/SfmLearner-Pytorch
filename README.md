@@ -4,6 +4,10 @@
 
 This code contains the implementation for the final project of 16-726.
 
+<div align="center">
+    <img src="assets/sample.gif"/>
+</div>
+
 The backbone of the code is based on this [repo](https://github.com/ClementPinard/SfmLearner-Pytorch) 
 which is implements the following paper: 
 
@@ -31,19 +35,70 @@ pip install -r requirements.txt
 
 ## Preparing the dataset 
 
+We used the Matterport3D ([MP3D](https://niessner.github.io/Matterport/)) dataset for 
+our project and the [Habitat](https://aihabitat.org) simulation environment to 
+generate egocentric trajectories for training, validation and testing. 
 
+<div align="center">
+    <img src="assets/rgb.gif"/>
+    <img src="assets/depth.gif"/>
+    <img src="assets/semantics.gif"/>
+</div>
 
-For [KITTI](http://www.cvlibs.net/datasets/kitti/raw_data.php), first download the dataset using this [script](http://www.cvlibs.net/download.php?file=raw_data_downloader.zip) provided on the official website, and then run the following command. The `--with-depth` option will save resized copies of groundtruth to help you setting hyper parameters. The `--with-pose` will dump the sequence pose in the same format as Odometry dataset (see pose evaluation)
+### How to get the Matterport3D dataset?
+
+##### Scenes:
+We use the MP3D's scene reconstructions. The official Matterport3D download script 
+(`download_mp.py`) can be accessed by following the instructions [here](https://niessner.github.io/Matterport/). 
+The scene data can then be downloaded:
 ```bash
-python3 data/prepare_train_data.py /path/to/raw/kitti/dataset/ --dataset-format 'kitti_raw' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 128 --num-threads 4 [--static-frames /path/to/static_frames.txt] [--with-depth] [--with-pose]
+# requires running with python 2.7
+python download_mp.py --task habitat -o data/scene_datasets/mp3d/
 ```
 
+We extracted it such that it has the form `data/scene_datasets/mp3d/{scene}/{scene}.glb`.
+There should be 90 scenes.
 
-For [Cityscapes](https://www.cityscapes-dataset.com/), download the following packages: 1) `leftImg8bit_sequence_trainvaltest.zip`, 2) `camera_trainvaltest.zip`. You will probably need to contact the administrators to be able to get it. Then run the following command
+##### Trajectories:
+We use the Vision-Language Navigation in Continuous Environments ([VLN-CE](https://jacobkrantz.github.io/vlnce/)) 
+dataset for getting the ego-centric trajectories. We used the ```R2R_VLNCE_v1-3_preprocessed``` 
+version of the dataset from their [repository](https://github.com/jacobkrantz/VLN-CE).
+We extracted it such that it has the form `data/R2R_VLNCE_v1-3_preprocessed/{split}/{split}.json.gz`.
+
+##### Simulator:
+We used the [Habitat-Sim](git@github.com:facebookresearch/habitat-sim.git) and 
+[Habitat-Lab](git@github.com:facebookresearch/habitat-lab.git) to prepare de dataset.
+To install them, run:
+
 ```bash
-python3 data/prepare_train_data.py /path/to/cityscapes/dataset/ --dataset-format 'cityscapes' --dump-root /path/to/resulting/formatted/data/ --width 416 --height 171 --num-threads 4
+# this is habitat-sim
+conda install -c aihabitat -c conda-forge habitat-sim=0.1.7 headless
+
+# this is for habitat-lab
+git clone --branch v0.1.7 git@github.com:facebookresearch/habitat-lab.git
+cd habitat-lab
+python -m pip install -r requirements.txt
+python setup.py develop --all
 ```
-Notice that for Cityscapes the `img_height` is set to 171 because we crop out the bottom part of the image that contains the car logo, and the resulting image will have height 128.
+
+##### The actual data we used:
+Finally, in ```data/habitat_extension``` we provide the code we used to generate
+the data we used in this project. Run it as:
+```bash
+python data/habitat_extension/run.py --exp-config data/habitat_extension/mp3d.yaml
+```
+The code should generate color, depth and semantic images, and pose information 
+for each trajectory, as shown in the gif above. 
+
+##### TODO: Post-processing steps:
+
+Additional post-processing was performed (does not require simulator):
+- Switching color channels
+- Converting the semantic images to labels 
+- Adding intrinsic parameters to the dataset
+- Statistics 
+
+# TODO: everything below needs to get modified
 
 ## Training
 Once the data are formatted following the above instructions, you should be able to train the model by running the following command

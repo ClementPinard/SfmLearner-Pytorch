@@ -1,9 +1,0 @@
-BASE_TASK_CONFIG_PATH: habitat_extension/config/base_config.yaml
-EVAL:
-    SPLIT: val_unseen
-    # any num greater than the actual episode count evals every episode
-    EPISODE_COUNT: 1000000
-    EVAL_NONLEARNING: True
-    NONLEARNING:
-        # RandomAgent or HandcraftedAgent
-        AGENT: RGBDSAgent
