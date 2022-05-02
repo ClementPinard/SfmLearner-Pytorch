@@ -443,7 +443,7 @@ if __name__ == '__main__':
         help='sequence length for training')
     parser.add_argument('--epochs', type=int, default=200, metavar='N',
         help='number of total epochs to run')
-    parser.add_argument('--epoch-size', type=int, default=3000,  metavar='N',
+    parser.add_argument('--epoch-size', type=int, default=0,  metavar='N',
         help='manual epoch size (will match dataset size if not set)')
     parser.add_argument('-b', '--batch-size', type=int, default=4, metavar='N',
         help='mini-batch size')
