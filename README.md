@@ -95,8 +95,24 @@ for each trajectory, as shown in the gif above.
 Some additional post-processing steps was performed. These steps include switching color channels, converting the semantic 
 images to labels, adding intrinsic parameters to the dataset, and analyzing trajectory statistics for the ego motion.
 None of these post-processing steps require the simulator.
--  
-- 
+- Switching Color Channels <br>
+The red and blue channels are swapped in the generation of the RGB output during the trajectory training, therefore,
+they need to be swapped back in order to form the right RGB image sequence. This is achieved in the file convert_bgr_to_rgb.py.
+Each BGR image in the directory is converted into an RGB image using CV2's cvtColor functionality. The corrected RGB
+images then overwrite the old BGR images and this directory of RGB images can then be turned into a GIF.
+
+- Converting Semantic Images to Labels <br>
+
+
+- Compute Trajectory Statistics <br>
+The trajectory statistics of generated ego motion were also analyzed. In particular, total number of environments, total
+number of trajectories, and average, min, and max trajectory lengths for each environment were calculated. This was done in
+compute_statistics.py. Total number of environments was calculated by counting the number of directories under each condition
+val_seen, val_unseen, and . These environment directory names are similar to randomly generated keys in appearance. Total number of
+trajectories was calculated by summing up the total number of directories that were under each of the environments in the three
+conditions val_seen, val_unseen, and __. These trajectory directories were named using numbers. Average, min, and max
+trajectory lengths were computed using python inbuilt .mean, .max and .min functions.
+
 -  
 
 # TODO: everything below needs to get modified
