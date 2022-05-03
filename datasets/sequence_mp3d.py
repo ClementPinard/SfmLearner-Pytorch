@@ -68,10 +68,13 @@ class SequenceFolderWithSemantics(data.Dataset):
                     'intrinsics': intrinsics, 
                     'tgt': imgs[i], 
                     'tgt_sem': sem_imgs[i],
-                    'ref_imgs': []
+                    'ref_imgs': [],
+                    'ref_sem_imgs': []
                 }
                 for j in shifts:
                     sample['ref_imgs'].append(imgs[i+j])
+                    sample['ref_sem_imgs'].append(sem_imgs[i+j])
+                    
                 sequence_set.append(sample)
                 
         random.shuffle(sequence_set)
@@ -83,23 +86,29 @@ class SequenceFolderWithSemantics(data.Dataset):
         # tgt_sem_img = np.load(sample['tgt_sem'])
         tgt_sem_img = load_as_float(sample['tgt_sem'])
         
-        ref_imgs = [load_as_float(ref_img) for ref_img in sample['ref_imgs']]
+        ref_imgs = [load_as_float(ri) for ri in sample['ref_imgs']]
+        ref_sem_imgs = [load_as_float(si) for si in sample['ref_sem_imgs']]
+        
         if self.transform is not None:
             imgs, intrinsics = self.transform(
                 [tgt_img] + ref_imgs, np.copy(sample['intrinsics']))
             
             # TODO: use one-hot vectors
-            tgt_sem_img = np.transpose(tgt_sem_img, (2, 0, 1))
-            tgt_sem_img = torch.from_numpy(tgt_sem_img).float()/255
+            sem_imgs, _ = self.transform(
+                [tgt_sem_img] + ref_sem_imgs, np.copy(sample['intrinsics']))
+            # tgt_sem_img = np.transpose(tgt_sem_img, (2, 0, 1))
+            # tgt_sem_img = torch.from_numpy(tgt_sem_img).float()/255
             
             # tgt_sem_img = torch.from_numpy(tgt_sem_img).unsqueeze(0).float()
             tgt_img = imgs[0]
             ref_imgs = imgs[1:]
             
+            tgt_sem_img = sem_imgs[0]
+            ref_sem_imgs = sem_imgs[1:]
         else:
             intrinsics = np.copy(sample['intrinsics'])
             
-        return tgt_img, tgt_sem_img, ref_imgs, intrinsics, np.linalg.inv(intrinsics)
+        return tgt_img, tgt_sem_img, ref_imgs, ref_sem_imgs, intrinsics, np.linalg.inv(intrinsics)
 
     def __len__(self):
         return len(self.samples)

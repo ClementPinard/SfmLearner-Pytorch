@@ -1,7 +1,5 @@
-# python3 train.py /path/to/the/formatted/data/ --log-output
 import time
 import csv
-
 import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
@@ -11,10 +9,11 @@ import utils.custom_transforms as custom_transforms
 import models
 
 from datasets.sequence_mp3d import SequenceFolderWithSemantics
-from utils.common import (tensor2array, save_checkpoint, save_path_formatter, 
+from utils.common import (
+    tensor2array, save_checkpoint, save_path_formatter, 
     log_output_tensorboard_semantic)
-from utils.loss_functions import (photometric_reconstruction_loss, 
-    explainability_loss, semantic_reconstruction_loss, smooth_loss)
+from utils.loss_functions import (photometric_reconstruction_loss, smooth_loss,
+    explainability_loss, semantic_reconstruction_loss)
 from utils.logger import TermLogger, AverageMeter
 
 from tensorboardX import SummaryWriter
@@ -40,26 +39,20 @@ def main(args):
     tb_writer = SummaryWriter(args.save_path)
     
     # Data loading code
+    print("=> fetching scenes in '{}'".format(args.data))
+    
     normalize = custom_transforms.Normalize(
         mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    train_transform = custom_transforms.Compose([
-        # custom_transforms.RandomHorizontalFlip(),
-        # custom_transforms.RandomScaleCrop(),
-        custom_transforms.ArrayToTensor(),
-        normalize
-    ])
     
-    # TODO: handle data augmentation
-    # TODO: generate semantic masks (labels instead of rgb colors)
-
-    valid_transform = custom_transforms.Compose(
-        [custom_transforms.ArrayToTensor(), normalize])
-
-    print("=> fetching scenes in '{}'".format(args.data))
+    train_transform = custom_transforms.Compose([
+        custom_transforms.ArrayToTensor(), normalize])
     
     train_set = SequenceFolderWithSemantics(
         args.data, transform=train_transform, seed=args.seed, train=True, 
         sequence_length=args.sequence_length)
+    
+    valid_transform = custom_transforms.Compose([
+        custom_transforms.ArrayToTensor(), normalize])
 
     val_set = SequenceFolderWithSemantics(
         args.data, transform=valid_transform, seed=args.seed, train=False, 
@@ -125,8 +118,9 @@ def main(args):
 
     with open(args.save_path/args.log_full, 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter='\t')
-        writer.writerow(
-            ['train_loss', 'photo_loss', 'explainability_loss', 'smooth_loss'])
+        writer.writerow([
+            'train_loss', 'photo_loss', 'explainability_loss', 'smooth_loss', 
+            'semantic_loss'])
 
     logger = TermLogger(
         n_epochs=args.epochs, train_size=min(len(train_loader), args.epoch_size), 
@@ -190,15 +184,14 @@ def main(args):
     logger.epoch_bar.finish()
 
 
-def train(
-    args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, logger, 
-    tb_writer):
-    
+def train(args, train_loader, disp_net, pose_exp_net, optimizer, epoch_size, 
+    logger, tb_writer):
     global n_iter, device
     
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
+    
     w1 = args.photo_loss_weight
     w2 = args.mask_loss_weight
     w3 = args.smooth_loss_weight
@@ -212,44 +205,45 @@ def train(
     logger.train_bar.update(0)
 
     for i, batch in enumerate(train_loader):
-        tgt_img, tgt_sem_img, ref_imgs, ref_sem_imgs, intrinsics, intrinsics_inv = batch 
+        target, target_sem, source, source_sem, intrinsics, intrinsics_inv = batch 
     
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = (
-            args.training_output_freq > 0 and 
-            n_iter % args.training_output_freq == 0)
+            args.training_output_freq > 0 and n_iter % args.training_output_freq == 0)
 
         # measure data loading time
         data_time.update(time.time() - end)
-        tgt_img = tgt_img.to(device)
-        ref_imgs = [img.to(device) for img in ref_imgs]
+        target = target.to(device)
+        target_sem = target_sem.to(device)
+        
+        source = [img.to(device) for img in source]
+        source_sem = [img.to(device) for img in source_sem]
+        
         intrinsics = intrinsics.to(device)
 
-        # compute output
-        if args.with_semantics:
-            tgt_sem_img = tgt_sem_img.to(device)
-            disparities = disp_net(tgt_img, tgt_sem_img)
-        else: 
-            disparities = disp_net(tgt_img)
-            
+        # predict disparitites
+        disparities = disp_net(target, target_sem)
         depth = [1/disp for disp in disparities]
+       
+        # predict pose and explainability mask
         explainability_mask, pose = pose_exp_net(
-            tgt_img, ref_imgs, tgt_sem_img, ref_sem_imgs)
+            target, source, target_sem, source_sem)
 
+        # compute loss
         loss_1, warped, diff = photometric_reconstruction_loss(
-            tgt_img, ref_imgs, intrinsics, depth, explainability_mask, pose,
+            target, source, intrinsics, depth, explainability_mask, pose,
             args.rotation_mode, args.padding_mode)
         
+        loss_2 = 0
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask)
-        else:
-            loss_2 = 0
+        
         loss_3 = smooth_loss(depth)
 
         loss_4 = 0
         if w4 > 0:
-            loss_1, warped_sem, diff_sem = semantic_reconstruction_loss(
-                tgt_sem_img, ref_sem_imgs, intrinsics, depth, explainability_mask, 
+            loss_4, warped_sem, diff_sem = semantic_reconstruction_loss(
+                target_sem, source_sem, intrinsics, depth, explainability_mask, 
                 pose, args.rotation_mode, args.padding_mode)
         
         loss = w1 * loss_1 + w2 * loss_2 + w3 * loss_3 + w4 * loss_4
@@ -268,10 +262,11 @@ def train(
             tb_writer.add_scalar('total_loss', loss.item(), n_iter)
 
         if log_output:
-            tb_writer.add_image('train Input', tensor2array(tgt_img[0]), n_iter)
-            tb_writer.add_image('semantic Input', tensor2array(tgt_sem_img[0]), n_iter)
+            tb_writer.add_image('train Input', tensor2array(target[0]), n_iter)
+            tb_writer.add_image('semantic Input', tensor2array(target_sem[0]), n_iter)
             for k, scaled_maps in enumerate(
-                zip(depth, disparities, warped, diff, warped_sem, diff_sem, explainability_mask)):
+                zip(depth, disparities, warped, diff, warped_sem, diff_sem, 
+                    explainability_mask)):
                 
                 log_output_tensorboard_semantic(
                     tb_writer, "train", 0, " {}".format(k), n_iter, *scaled_maps)
@@ -290,26 +285,27 @@ def train(
 
         with open(args.save_path/args.log_full, 'a') as csvfile:
             writer = csv.writer(csvfile, delimiter='\t')
-            writer.writerow(
-                [loss.item(), loss_1.item(), loss_2.item() if w2 > 0 else 0, loss_3.item()])
+            writer.writerow([
+                loss.item(), loss_1.item(), loss_2.item() if w2 > 0 else 0, 
+                loss_3.item(), loss_4.item() if w4 > 0 else 0, loss_4.item()])
+        
         logger.train_bar.update(i+1)
         if i % args.print_freq == 0:
             logger.train_writer.write(
-                'Train: Time {} Data {} Loss {}'.format(
-                    batch_time, data_time, losses))
+                'Train: Time {} Data {} Loss {}'.format(batch_time, data_time, 
+                losses))
+            
         if i >= epoch_size - 1:
             break
 
         n_iter += 1
-
+        
     return losses.avg[0]
-
 
 @torch.no_grad()
 def validate(
     args, val_loader, disp_net, pose_exp_net, epoch, logger, tb_writer, 
     sample_nb_to_log=3):
-    
     global device
     
     batch_time = AverageMeter()
@@ -319,6 +315,7 @@ def validate(
     # Output the logs throughout the whole dataset
     batches_to_log = list(
         np.linspace(0, len(val_loader), sample_nb_to_log).astype(int))
+    
     w1 = args.photo_loss_weight
     w2 = args.mask_loss_weight
     w3 = args.smooth_loss_weight
@@ -335,49 +332,55 @@ def validate(
     end = time.time()
     logger.valid_bar.update(0)
     for i, batch in enumerate(val_loader):
+            
+        target, target_sem, source, source_sem, intrinsics, intrinsics_inv = batch
         
-        tgt_img, tgt_sem_img, ref_imgs, ref_sem_imgs, intrinsics, intrinsics_inv = batch
+        target = target.to(device)
+        target_sem = target_sem.to(device)
         
-        tgt_img = tgt_img.to(device)
-        ref_imgs = [img.to(device) for img in ref_imgs]
+        source = [img.to(device) for img in source]
+        source_sem = [img.to(device) for img in source_sem]
+        
         intrinsics = intrinsics.to(device)
         intrinsics_inv = intrinsics_inv.to(device)
-
-        # compute output
-        if args.with_semantics:
-            tgt_sem_img = tgt_sem_img.to(device)
-            disp = disp_net(tgt_img, tgt_sem_img)
-        else:
-            disp = disp_net(tgt_img)
-            
-        depth = 1/disp
-        explainability_mask, pose = pose_exp_net(tgt_img, ref_imgs)
-
-        loss_1, warped, diff = photometric_reconstruction_loss(
-            tgt_img, ref_imgs, intrinsics, depth, explainability_mask, pose,
-            args.rotation_mode, args.padding_mode)
         
+        # predict disparitites
+        disp = disp_net(target, target_sem)
+        depth = 1 / disp
+       
+        # predict pose and explainability mask
+        explainability_mask, pose = pose_exp_net(
+            target, source, target_sem, source_sem)
+        
+        # compute loss
+        loss_1, warped, diff = photometric_reconstruction_loss(
+            target, source, intrinsics, depth, explainability_mask, pose,
+            args.rotation_mode, args.padding_mode)
         loss_1 = loss_1.item()
+        
+        loss_2 = 0
         if w2 > 0:
             loss_2 = explainability_loss(explainability_mask).item()
-        else:
-            loss_2 = 0
-        loss_3 = smooth_loss(depth).item()
         
-        loss_4 = 0.0
+        loss_3 = smooth_loss(depth).item()
+
+        loss_4 = 0
         if w4 > 0:
             loss_4, warped_sem, diff_sem = semantic_reconstruction_loss(
-                tgt_sem_img, ref_sem_imgs, intrinsics, depth, explainability_mask, 
+                target_sem, source_sem, intrinsics, depth, explainability_mask, 
                 pose, args.rotation_mode, args.padding_mode)
-
+            loss_4 = loss_4.item()
+        
+        loss = w1 * loss_1 + w2 * loss_2 + w3 * loss_3 + w4 * loss_4
+        
         if log_outputs and i in batches_to_log:  # log first output of wanted batches
             index = batches_to_log.index(i)
             if epoch == 0:
-                for j, ref in enumerate(ref_imgs):
+                for j, ref in enumerate(source):
                     tb_writer.add_image(
-                        'val Input {}/{}'.format(j, index), tensor2array(tgt_img[0]), 0)
+                        'val Input {}/{}'.format(j, index), tensor2array(target[0]), 0)
                     tb_writer.add_image(
-                        'sem Input {}/{}'.format(j, index), tensor2array(tgt_sem_img[0]), 0)
+                        'sem Input {}/{}'.format(j, index), tensor2array(target_sem[0]), 0)
                     tb_writer.add_image(
                         'val Input {}/{}'.format(j, index), tensor2array(ref[0]), 1)
 
@@ -394,8 +397,7 @@ def validate(
                 [disp_unraveled.min(-1)[0], disp_unraveled.median(-1)[0],
                 disp_unraveled.max(-1)[0]]).numpy()
 
-        loss = w1*loss_1 + w2*loss_2 + w3*loss_3
-        losses.update([loss, loss_1, loss_2])
+        losses.update([loss, loss_1, loss_4])
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -419,7 +421,7 @@ def validate(
     logger.valid_bar.update(len(val_loader))
     
     return losses.avg, [
-        'Validation Total loss', 'Validation Photo loss', 'Validation Exp loss']
+        'Validation Total loss', 'Validation Photo loss', 'Validation Sem loss']
 
 if __name__ == '__main__':
     import argparse
@@ -429,8 +431,7 @@ if __name__ == '__main__':
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
     # I/O
-    parser.add_argument('data', metavar='DIR', 
-        help='path to dataset')
+    parser.add_argument('data', metavar='DIR', help='path to dataset')
     parser.add_argument('--print-freq', type=int,  default=10, metavar='N', 
         help='print frequency')
     parser.add_argument('--log-summary', default='log_summary.csv', metavar='PATH',
@@ -471,8 +472,9 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=0, 
         help='seed for random functions, and network initialization')
     
-    parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], default='euler',
-        help='rotation mode for PoseExpnet : euler (yaw,pitch,roll) or quaternion (last 3 coefficients)')
+    parser.add_argument('--rotation-mode', type=str, choices=['euler', 'quat'], 
+        default='euler', help='rotation mode for PoseExpnet : euler (yaw,pitch,roll)'
+        ' or quaternion (last 3 coefficients)')
     parser.add_argument('--padding-mode', type=str, choices=['zeros', 'border'], default='zeros',
         help='padding mode for image warping : this is important for photometric differenciation when going outside target image.'
         ' zeros will null gradients outside target image.'
@@ -484,11 +486,10 @@ if __name__ == '__main__':
         help='evaluate model on validation set')
     parser.add_argument('--pin-memory', dest='pin_memory', action='store_true',
         help='evaluate model on validation set')
-    parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, metavar='PATH',
-        help='path to pre-trained dispnet model')
-    parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None, metavar='PATH',
-        help='path to pre-trained Exp Pose net model')
+    parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, 
+        metavar='PATH', help='path to pre-trained dispnet model')
+    parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', 
+        default=None, metavar='PATH', help='path to pre-trained Exp Pose net model')
     
     args = parser.parse_args()
-    
     main(args)
