@@ -90,13 +90,14 @@ python data/habitat_extension/run.py --exp-config data/habitat_extension/mp3d.ya
 The code should generate color, depth and semantic images, and pose information 
 for each trajectory, as shown in the gif above. 
 
-##### TODO: Post-processing steps:
+##### Post-processing steps:
 
-Additional post-processing was performed (does not require simulator):
-- Switching color channels
-- Converting the semantic images to labels 
-- Adding intrinsic parameters to the dataset
-- Statistics 
+Some additional post-processing steps was performed. These steps include switching color channels, converting the semantic 
+images to labels, adding intrinsic parameters to the dataset, and analyzing trajectory statistics for the ego motion.
+None of these post-processing steps require the simulator.
+-  
+- 
+-  
 
 # TODO: everything below needs to get modified
 
