@@ -99,23 +99,24 @@ None of these post-processing steps require the simulator.
 The red and blue channels are swapped in the generation of the RGB output during the trajectory training, therefore,
 they need to be swapped back in order to form the right RGB image sequence. This is achieved in the file convert_bgr_to_rgb.py.
 Each BGR image in the directory is converted into an RGB image using CV2's cvtColor functionality. The corrected RGB
-images then overwrite the old BGR images and this directory of RGB images can then be turned into a GIF.
+images then overwrite the old BGR images and this directory of RGB images can then be turned into a GIF. <br>
 
 - Converting Semantic Images to Labels <br>
-
+Generated output GIFs were also labelled using semantic labelling. This was done in generate_semantic_masks.py. Each image in
+the GIF outputs were masked with a semantic mask. Each of the masked areas of pixels were replaced by a specified associated color.
 
 - Compute Trajectory Statistics <br>
 The trajectory statistics of generated ego motion were also analyzed. In particular, total number of environments, total
 number of trajectories, and average, min, and max trajectory lengths for each environment were calculated. This was done in
 compute_statistics.py. Total number of environments was calculated by counting the number of directories under each condition
-val_seen, val_unseen, and . These environment directory names are similar to randomly generated keys in appearance. Total number of
+val_seen, val_unseen, and train. These environment directory names are similar to randomly generated keys in appearance. Total number of
 trajectories was calculated by summing up the total number of directories that were under each of the environments in the three
-conditions val_seen, val_unseen, and __. These trajectory directories were named using numbers. Average, min, and max
+conditions val_seen, val_unseen, and train. These trajectory directories were named using numbers. Average, min, and max
 trajectory lengths were computed using python inbuilt .mean, .max and .min functions.
 
--  
-
-# TODO: everything below needs to get modified
+- Adding Intrinsic Parameters to the Dataset <br>
+The associated intrinsic camera transform was saved into the directories of each of the RGB ego motion GIFs generated. 
+The code that performs this can be found in add_intrinsics.py.
 
 ## Training
 Once the data are formatted following the above instructions, you should be able to train the model by running the following command
