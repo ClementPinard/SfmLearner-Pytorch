@@ -144,17 +144,6 @@ python run_depth_inference.py --pretrained bach/checkpoints/mp3d_sfm/04-26-23:56
 ```
 
 
-Test file list is available in kitti eval folder. To get fair comparison with [Original paper evaluation code](https://github.com/tinghuiz/SfMLearner/blob/master/kitti_eval/eval_depth.py), don't specify a posenet. However, if you do,  it will be used to solve the scale factor ambiguity, the only ground truth used to get it will be vehicle speed which is far more acceptable for real conditions quality measurement, but you will obviously get worse results.
-
-Pose evaluation is also available on [Odometry dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php). Be sure to download both color images and pose !
-
-```bash
-python3 test_pose.py /path/to/posenet --dataset-dir /path/to/KITIT_odometry --sequences [09]
-```
-
-**ATE** (*Absolute Trajectory Error*) is computed as long as **RE** for rotation (*Rotation Error*). **RE** between `R1` and `R2` is defined as the angle of `R1*R2^-1` when converted to axis/angle. It corresponds to `RE = arccos( (trace(R1 @ R2^-1) - 1) / 2)`.
-While **ATE** is often said to be enough to trajectory estimation, **RE** seems important here as sequences are only `seq_length` frames long.
-
 ## Pretrained Nets
 
 [Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
@@ -167,20 +156,20 @@ python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --
 
 ### Results
 The following depth GIF results were obtained on new testing data after training the models.
-
+<br>
 <div align="center">
     <img src="assets/ep-772_EU6Fwq7SyZv-772-rgb-25.gif"/>
 </div>
 This GIF shows a depth "heatmap" of a given traversal in a given environment. The results are not the clearest when compared
 to the ground truth to the left of it, however, you can still make out the environment.
-
+<br>
 <div align="center">
     <img src="assets/ep-1210_8194nk5LbLH-1210-rgb-31.gif"/>
 </div>
 This GIF is an example of output generated when the model has been trained directly on the ground truth. There are some 
 warping issues, but it is still clear what the environment is and where the trajectory of the ego motion is going when
 compared to the ground truth.
-
+<br>
 <div align="center">
     <img src="assets/ep-1837_Z6MFQCViBuw-1837-rgb-64.gif"/>
 </div>
@@ -188,6 +177,7 @@ This GIF is an example of output generated when the model predicts the next fram
 noticeable warping issues during certain segments of the GIF, but it is still pretty clear what the environment is and where
 the trajectory is going.
 
+<br>
 <br>
 Here were the trajectory statistics obtained after training the pose network.
 
