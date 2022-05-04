@@ -119,28 +119,28 @@ The associated intrinsic camera transform was saved into the directories of each
 The code that performs this can be found in add_intrinsics.py.
 
 ## Training
-Once the data are formatted following the above instructions, you should be able to train the model by running the following command
+During the training stage, the model predicts depth and pose information through a view-synthesis loss. Based on  
+Each environment and trajectory was trained for a total of 50 epochs due to time and resource constraints.
+
+Training can be done using the following command:
 ```bash
-python3 train.py /path/to/the/formatted/data/ -b4 -m0.2 -s0.1 --epoch-size 3000 --sequence-length 3 --log-output [--with-gt]
+python train_mp3d.py data/mp3d_sfm/ --log-output --mask-loss-weight 0.0 --with-semantics --batch-size 16
 ```
-You can then start a `tensorboard` session in this folder by
-```bash
-tensorboard --logdir=checkpoints/
-```
-and visualize the training progress by opening [https://localhost:6006](https://localhost:6006) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI.
+
 
 ## Evaluation
+During the inference stage, the model is given an input image and a desired set of poses, and uses projective geometry 
+and the predicted depth to synthesize the new viewpoints. 
 
-Disparity map generation can be done with `run_inference.py`
+Pose inference can be run using the following command:
 ```bash
-python3 run_inference.py --pretrained /path/to/dispnet --dataset-dir /path/pictures/dir --output-dir /path/to/output/dir
+python run_pose_inference.py --pretrained-disp checkpoints/mp3d_sfm/exp1_04-26-23:56/dispnet_model_best.pth.tar  --pretrained-pose checkpoints/mp3d_sfm/exp1_04-26-23:56/exp_pose_model_best.pth.tar  --output-dir out/exp1_val/vs_unseen
 ```
-Will run inference on all pictures inside `dataset-dir` and save a jpg of disparity (or depth) to `output-dir` for each one see script help (`-h`) for more options.
+And depth inference can be run using the following command:
+```bash
+python run_depth_inference.py --pretrained bach/checkpoints/mp3d_sfm/04-26-23:56/dispnet_model_best.pth.tar  --dataset-dir data/mp3d_sfm/val_unseen  --output-dir exp1_val/depth_unseen --with-disp --with-depth
+```
 
-Disparity evaluation is avalaible
-```bash
-python3 test_disp.py --pretrained-dispnet /path/to/dispnet --pretrained-posenet /path/to/posenet --dataset-dir /path/to/KITTI_raw --dataset-list /path/to/test_files_list
-```
 
 Test file list is available in kitti eval folder. To get fair comparison with [Original paper evaluation code](https://github.com/tinghuiz/SfMLearner/blob/master/kitti_eval/eval_depth.py), don't specify a posenet. However, if you do,  it will be used to solve the scale factor ambiguity, the only ground truth used to get it will be vehicle speed which is far more acceptable for real conditions quality measurement, but you will obviously get worse results.
 
@@ -180,17 +180,6 @@ python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --
 
 
 ## Discussion
-
-Here I try to link the issues that I think raised interesting questions about scale factor, pose inference, and training hyperparameters
-
- - [Issue 48](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/48) : Why is target frame at the center of the sequence ?
- - [Issue 39](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/39) : Getting pose vector without the scale factor uncertainty
- - [Issue 46](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/46) : Is Interpolated groundtruth better than sparse groundtruth ?
- - [Issue 45](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/45) : How come the inverse warp is absolute and pose and depth are only relative ?
- - [Issue 32](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/32) : Discussion about validation set, and optimal batch size
- - [Issue 25](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/25) : Why filter out static frames ?
- - [Issue 24](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/24) : Filtering pixels out of the photometric loss
- - [Issue 60](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/60) : Inverse warp is only one way !
 
 ## Other Implementations
 
