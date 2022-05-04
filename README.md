@@ -120,7 +120,9 @@ The code that performs this can be found in add_intrinsics.py.
 
 ## Training
 During the training stage, the model predicts depth and pose information through a view-synthesis loss. Based on  
-Each environment and trajectory was trained for a total of 50 epochs due to time and resource constraints.
+<br>
+Each environment and trajectory was trained for a total of 50 epochs due to time and resource constraints. Additional epochs
+of time were added as time allowed.
 
 Training can be done using the following command:
 ```bash
@@ -164,23 +166,23 @@ python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --
 ```
 
 ### Depth Results
+The following depth GIF results were obtained after training the depth network.
 
-| Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
-|---------|--------|-------|-----------|-------|-------|-------|
-| 0.181   | 1.341  | 6.236 | 0.262     | 0.733 | 0.901 | 0.964 | 
+<div align="center">
+    <img src="assets/sample.gif"/>
+</div>
 
 ### Pose Results
+Here were the trajectory statistics results obtained after training the pose network.
 
-5-frames snippets used
-
-|    | Seq. 09              | Seq. 10              |
-|----|----------------------|----------------------|
-|ATE | 0.0179 (std. 0.0110) | 0.0141 (std. 0.0115) |
-|RE  | 0.0018 (std. 0.0009) | 0.0018 (std. 0.0011) | 
+| Split | Number of Scenes | # Trajectories/Scene | # of Total Trajectories | # steps/Trajectory |
+|-------|------------------|----------------------|-------------------------|--------------------|
+| Train | 33               | 65                   | 2169                    | 55 / 119,976       |
+| Val   | 28               | 5                    | 142                     | 54 / 7750          |
+| Test  | 11               | 55                   | 613                     | 54 / 33,412        |
 
 
 ## Discussion
 
 ## Other Implementations
-
 [TensorFlow](https://github.com/tinghuiz/SfMLearner) by tinghuiz (original code, and paper author)
