@@ -148,7 +148,7 @@ python run_depth_inference.py --pretrained bach/checkpoints/mp3d_sfm/04-26-23:56
 
 [Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
 
-Arguments used :
+Arguments used:
 
 ```bash
 python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --sequence-length 5 --log-output --with-gt
@@ -188,7 +188,10 @@ Here were the trajectory statistics obtained after training the pose network.
 | Test  | 11               | 55                   | 613                     | 54 / 33,412        |
 
 
-## Discussion
+## Conclusion
+In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories given by the
+MatterPort3D dataset. We believe that the model would be even more accurate at portraying these indoor trajectories if they
+were given even more training time.
 
 ## Other Implementations
 [TensorFlow](https://github.com/tinghuiz/SfMLearner) by tinghuiz (original code, and paper author)
