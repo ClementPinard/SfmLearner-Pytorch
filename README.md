@@ -188,10 +188,13 @@ Here were the trajectory statistics obtained after training the pose network.
 | Test  | 11               | 55                   | 613                     | 54 / 33,412        |
 
 
-## Conclusion
+## Conclusion and Future Goals
 In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories given by the
 MatterPort3D dataset. We believe that the model would be even more accurate at portraying these indoor trajectories if they
 were given even more training time.
+Some things that we can try going forward include:
+- 3D point loss
+- Improve multi-scale loss
 
 ## Other Implementations
 [TensorFlow](https://github.com/tinghuiz/SfMLearner) by tinghuiz (original code, and paper author)
