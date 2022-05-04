@@ -45,7 +45,7 @@ class SemPoseExpNet(nn.Module):
         self.sconv7 = conv(conv_planes[5], conv_planes[6])
 
         self.pose_pred = nn.Conv2d(2 * conv_planes[6], 6*self.nb_ref_imgs, kernel_size=1, padding=0)
-
+        
         if self.output_exp:
             upconv_planes = [256, 128, 64, 32, 16]
             self.upconv5 = upconv(conv_planes[4],   upconv_planes[0])
@@ -73,6 +73,7 @@ class SemPoseExpNet(nn.Module):
         input = [tgt_img]
         input.extend(ref_imgs)
         input = torch.cat(input, 1)
+        
         out_conv1 = self.conv1(input)
         out_conv2 = self.conv2(out_conv1)
         out_conv3 = self.conv3(out_conv2)
@@ -81,18 +82,19 @@ class SemPoseExpNet(nn.Module):
         out_conv6 = self.conv6(out_conv5)
         out_conv7 = self.conv7(out_conv6)
         
-        sem_input = [sem_ref_imgs]
+        sem_input = [sem_target_img]
         sem_input.extend(sem_ref_imgs)
         sem_input = torch.cat(sem_input, 1)
-        out_sconv1 = self.conv1(sem_input)
-        out_sconv2 = self.conv2(out_sconv1)
-        out_sconv3 = self.conv3(out_sconv2)
-        out_sconv4 = self.conv4(out_sconv3)
-        out_sconv5 = self.conv5(out_sconv4)
-        out_sconv6 = self.conv6(out_sconv5)
-        out_sconv7 = self.conv7(out_sconv6)
+        
+        out_sconv1 = self.sconv1(sem_input)
+        out_sconv2 = self.sconv2(out_sconv1)
+        out_sconv3 = self.sconv3(out_sconv2)
+        out_sconv4 = self.sconv4(out_sconv3)
+        out_sconv5 = self.sconv5(out_sconv4)
+        out_sconv6 = self.sconv6(out_sconv5)
+        out_sconv7 = self.sconv7(out_sconv6)
 
-        pose_input = torch.cat([out_conv7, out_sconv7])
+        pose_input = torch.cat([out_conv7, out_sconv7], axis=1)
         pose = self.pose_pred(pose_input)
         pose = pose.mean(3).mean(2)
         pose = 0.01 * pose.view(pose.size(0), self.nb_ref_imgs, 6)
