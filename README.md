@@ -165,15 +165,31 @@ Arguments used :
 python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --sequence-length 5 --log-output --with-gt
 ```
 
-### Depth Results
-The following depth GIF results were obtained after training the depth network.
+### Results
+The following depth GIF results were obtained on new testing data after training the models.
 
 <div align="center">
-    <img src="assets/sample.gif"/>
+    <img src="assets/ep-772_EU6Fwq7SyZv-772-rgb-25.gif"/>
 </div>
+This GIF shows a depth "heatmap" of a given traversal in a given environment. The results are not the clearest when compared
+to the ground truth to the left of it, however, you can still make out the environment.
 
-### Pose Results
-Here were the trajectory statistics results obtained after training the pose network.
+<div align="center">
+    <img src="assets/ep-1210_8194nk5LbLH-1210-rgb-31.gif"/>
+</div>
+This GIF is an example of output generated when the model has been trained directly on the ground truth. There are some 
+warping issues, but it is still clear what the environment is and where the trajectory of the ego motion is going when
+compared to the ground truth.
+
+<div align="center">
+    <img src="assets/ep-1837_Z6MFQCViBuw-1837-rgb-64.gif"/>
+</div>
+This GIF is an example of output generated when the model predicts the next frame of the image. This results in even more
+noticeable warping issues during certain segments of the GIF, but it is still pretty clear what the environment is and where
+the trajectory is going.
+
+<br>
+Here were the trajectory statistics obtained after training the pose network.
 
 | Split | Number of Scenes | # Trajectories/Scene | # of Total Trajectories | # steps/Trajectory |
 |-------|------------------|----------------------|-------------------------|--------------------|
