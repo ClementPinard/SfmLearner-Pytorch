@@ -1,0 +1,263 @@
+/*!
+ * Start Bootstrap - Resume v5.0.7 (https://startbootstrap.com/template-overviews/resume)
+ * Copyright 2013-2019 Start Bootstrap
+ * Licensed under MIT (https://github.com/BlackrockDigital/startbootstrap-resume/blob/master/LICENSE)
+ */
+
+  
+body {
+ 	font-family:Muli,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji';
+ 	padding-top:54px;
+ 	color:#3e3f41;
+ 	background-color: #f1f7f7;
+}
+
+@media(min-width:992px) {
+ 	body {
+ 		padding-top:0;
+ 		/* Pads text to left */
+ 		padding-left: 25rem;
+ 	}
+}
+
+h1,h2,h3,h4,h5,h6{
+ 	font-family:'Saira Extra Condensed',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif,'Apple Color Emoji','Segoe UI Emoji','Segoe UI Symbol','Noto Color Emoji';
+ 	font-weight:700;
+ 	color:#363738
+ 	/*#343a40*/
+}
+
+h1{
+	font-size:6rem;
+	line-height:5.5rem;
+	text-transform:uppercase;
+}
+
+h2{
+	font-size:3.5rem;
+	text-transform:uppercase;
+}
+
+h3{
+	font-size:2rem
+	text-transform:uppercase;
+}
+
+p,ul,li{
+	color:#848285
+}
+
+p.lead{
+	font-size:1rem;
+	font-weight:400;
+}
+
+#sideNav .navbar-nav .nav-item .nav-link {
+	font-weight:1000;
+	font-size: 2.0rem;
+	letter-spacing:.05rem;
+	text-transform:uppercase;
+	-webkit-text-stroke: 2px rgb(20, 13, 105);
+	/* color:#21379b; */
+} 
+
+#sideNav .navbar-toggler:focus{
+	outline-color:#7e0a78
+}
+
+@media (min-width:992px){
+	#sideNav{
+		text-align:center;
+		position:fixed;
+		top:0;
+		left:0;
+		display:-webkit-box;
+		display:-ms-flexbox;
+		display:flex;
+		-webkit-box-orient:vertical;
+		-webkit-box-direction:normal;
+		-ms-flex-direction:column;
+		flex-direction:column;
+
+		/* Reduce side nav width*/
+		width:24rem;
+		height:100vh
+	}
+	
+	#sideNav .navbar-brand{
+		display:-webkit-box;
+		display:-ms-flexbox;
+		display:flex;
+		margin:auto auto 0;
+		padding:.5rem
+	}
+
+	#sideNav .navbar-brand .img-profile{
+		max-width:14rem;
+		max-height:14rem;
+		border:.5rem solid rgba(13, 55, 134, 0.2)
+	}
+
+	#sideNav .navbar-collapse{
+		display:-webkit-box;
+		display:-ms-flexbox;
+		display:flex;
+		-webkit-box-align:start;
+		-ms-flex-align:start;
+		align-items:flex-start;
+		-webkit-box-flex:0;
+		-ms-flex-positive:0;
+		flex-grow:0;
+		width:100%;
+		margin-bottom:auto
+	}
+
+	#sideNav .navbar-collapse .navbar-nav{
+		-webkit-box-orient:vertical;
+		-webkit-box-direction:normal;
+		-ms-flex-direction:column;
+		flex-direction:column;
+		width:100%
+	}
+	
+	#sideNav .navbar-collapse .navbar-nav .nav-item{
+		display:block
+	}
+
+	#sideNav .navbar-collapse .navbar-nav .nav-item .nav-link{
+		display:block
+	}
+}
+
+section.project-section{
+	padding-top:5rem!important;
+	padding-bottom:5rem!important;
+	max-width:75rem
+}
+
+section.project-section .resume-item .resume-date{
+	min-width:none
+}
+
+a{
+	color:#21379b
+}
+
+a:active,a:focus,a:hover{
+	color:#e4a359;
+}
+
+figure, figcaption {
+	display: block;
+	font-style: italic;
+	font-variant: small-caps;
+}
+
+.bg-primary{
+	/* background-image: url( '../data/img/bg.png'); */
+	opacity: 1.0;
+	background-size: cover;
+	background-color:#415ebe 
+}
+
+.text-primary{
+	color:#384a9c !important
+}
+
+.center {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	width: 50%;
+  }
+
+  .center-large {
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	width: 80%;
+  }
+
+pre {
+	width: 100%;
+	padding: 0;
+	margin: 0;
+	overflow: auto;
+	overflow-y: hidden;
+	font-size: 12px;
+	line-height: 20px;
+	background: #dee0e0;
+	border: none;
+	/* background: url(lines.png) repeat 0 0; */
+}
+pre code {
+	white-space:pre-wrap;
+	padding: 5px;
+	color: rgb(78, 75, 75);
+}
+
+img {
+	width:800px;
+}
+
+.img_item{
+	width:300px;
+}
+
+.img_item_x{
+	width:500px;
+}
+
+
+.img_item_2x{
+	width:600px;
+}
+
+.img_item_3x{
+	width:900px;
+}
+
+
+.img_container_no_scroll {
+	
+	white-space:nowrap;
+}
+
+.styled-table {
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.styled-table thead tr {
+    background-color: #21379b;
+    color: #ffffff;
+    text-align: left;
+}
+
+.styled-table th,
+.styled-table td {
+    padding: 12px 15px;
+}
+  
+figcaption { 
+	position: absolute; 
+	background: rgba(0,0,0,0.75); 
+	color: white; 
+	padding: 10px 20px; 
+  
+	opacity: 0;
+	bottom: 0; 
+	left: -30%;
+	-webkit-transition: all 0.6s ease;
+	-moz-transition:    all 0.6s ease;
+	-o-transition:      all 0.6s ease;
+  }
+  
+  figure:hover figcaption {
+	opacity: 1;
+	left: 0;
+  }

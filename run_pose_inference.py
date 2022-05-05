@@ -27,7 +27,7 @@ def main(args):
         disp_net.eval()
     
     # Initialize pose network
-    pose_net = PoseExpNet().to(device)
+    pose_net = PoseExpNet(output_exp=args.use_exp_mask).to(device)
     weights = torch.load(args.pretrained_pose)
     pose_net.load_state_dict(weights['state_dict'])
     pose_net.eval()
@@ -71,7 +71,7 @@ def main(args):
                 ref_imgs = []
                 for s in sequence:
                     simg_ = imread(rgb_test_files[i+s])
-                    simg = array2tensor(simg_)
+                    simg = array2tensor(simg_).to(device)
                     seq_imgs.append(simg_)
                     ref_imgs.append(simg)
                     
@@ -95,7 +95,20 @@ def main(args):
                 warped = 255 * tensor2array(warped[0][1], max_value=1)
                 warped = np.transpose(warped, (1, 2, 0)).astype(np.uint8)
                 
-                output_img = np.concatenate((out_img, warped, seq_imgs[1]), axis=1)
+                if expmask is not None:
+                    expmask = expmask.squeeze(0)[1]
+                    expmask = 255 * tensor2array(expmask, max_value=1)
+                    expmask = np.transpose(expmask, (1, 2, 0)).astype(np.uint8)
+                    
+                    exp_mask_ext = np.zeros(warped.shape).astype(np.uint8)
+                    exp_mask_ext[:] = expmask
+                    
+                    output_img = np.concatenate(
+                        (out_img, expmask, warped, seq_imgs[1]), axis=1)
+                else:
+                    output_img = np.concatenate(
+                        (out_img, warped, seq_imgs[1]), axis=1)
+                    
                 img_list.append(output_img)
                 
                 file_path, _ = rgb_test_files[i].relpath(args.dataset_dir).splitext()
@@ -125,6 +138,8 @@ if __name__ == '__main__':
         help="Output directory")
     
     # Other parameters
+    parser.add_argument("--use-exp-mask", action='store_true', 
+        help='uses explainability mask')
     parser.add_argument("--use-gt-depth", action='store_true', 
         help='use ground truth depth to test poses')
     parser.add_argument("--use-pred-depth", action='store_true',

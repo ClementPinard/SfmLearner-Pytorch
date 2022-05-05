@@ -39,10 +39,6 @@ def main(args):
     with open(base_output_dir/args.error_full, 'w') as csvfile:
         writer = csv.writer(csvfile, delimiter='\t')
         writer.writerow(error_names)
-        
-    # Load intrinsic matrix
-    K = np.genfromtxt(args.intrinsics).astype(np.float32).reshape((3, 3))
-    K = torch.from_numpy(K).unsqueeze(0).to(device)
     
     dirs = [dataset_dir/d for d in os.listdir(dataset_dir)]
     images_considered = 0 
