@@ -119,7 +119,12 @@ The associated intrinsic camera transform was saved into the directories of each
 The code that performs this can be found in add_intrinsics.py.
 
 ## Training
-During the training stage, the model predicts depth and pose information through a view-synthesis loss. Based on  
+During the training stage, the model predicts depth and pose information through a view-synthesis loss. Based on previous work,
+there were two networks that required training–the pose network and the depth network. The depth prediction network interprets the inputs
+from the RGB-encoder network and the semantic network into an applicable depth map.
+<br>
+The pose network predicts the pose transformation between a view at time t=n and a view at time t=n+1. The predictions are
+warps between timeframes. 
 <br>
 Each environment and trajectory was trained for a total of 50 epochs due to time and resource constraints. Additional epochs
 of time were added as time allowed.
