@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title> project </title>
+  <link rel="shortcut icon" href="data/img/llama.png" type="image/png"/>
+  <!-- Bootstrap core CSS -->
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <!-- Custom styles for this template -->
+  <link href="css/project.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+</head>
+
+<!-- Navigation bar on the side -->
+<body id="page-top">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary" id="sideNav">
+    <a class="navbar-brand" href="#page-top">
+      <span class="d-block d-lg-none">ingridn</span>
+    </a>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="#intro">Introduction</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#approach">Approach</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#experiments">Experiments</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#results">Results</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#discussion">Discussion</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#ref">References</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Introduction -->
+  
+  <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="intro">
+    <div class="w-100">
+      <h3 class="mb-3">16-726: <span class="text-primary">Learning-based Image Synthesis</span></h3>
+      <h3 class="mb-3">Final Project: <span class="text-primary"> Semantics-Driven View Synthesis</span></h3>
+      <h5> <span class="text-primary"> Ingrid Navarro-Anaya </span> (ingridn), <span class="text-primary"> Suann Chi </span> (suannc) </h5>
+
+        <hr class="mb-5"/>  
+        <div class="container">
+          <h3 class="mb-3">INTRODUCTION</h3>
+          <p class="lead mb-3"> 
+          TODO: 
+          </p>
+
+          <p class="lead mb-3"> 
+          The sections that follow are organized as follows: 
+          <ul>
+            <li class="mb-3">
+              In the <code>Approach</code> section, ... 
+            </li>
+            <li class="mb-3">
+              In the <code>Experiments</code> section, ...
+            </li>
+            <li class="mb-3">
+              In the <code>Results</code> section, ...
+            </li>
+            <li class="mb-3">
+              In the <code>Discussion</code> section, ...
+            </li>
+          </ul> 
+        </div>
+      </div>
+    </section>
+
+    <hr>
+
+    <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="approach">
+      <div class="container">
+        <h3 class="mb-3">APPROACH</h3>
+        <h4 class="mb-3 text-primary">Part 1: The Dataset</h4>
+        
+        <p class="lead mb-3"> 
+        In this project, we are interested in learning the 3D structure of 
+        indoor environments. Specifically, we used the 
+        <a href="https://niessner.github.io/Matterport/">Matterport3D </a> (MP3D) 
+        dataset for our project and the 
+        <a href="https://aihabitat.org">Habitat </a> simulation environment to 
+        generate egocentric trajectories for training, validation and testing. 
+
+        This section describes in more detail the procedure followed to generate 
+        said dataset. 
+        </p>
+        
+        <p class="lead mb-3" > 
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/gt_depth_example.gif" class="img_item">
+            <img src="data/project/gt_rgb_example.gif" class="img_item">
+            <img src="data/project/gt_semantic_example.gif" class="img_item">
+            <figure>
+              <strong>Figure 1. Matterport3D trajectory obtained through the 
+                Habitat simulation environment. 
+              </strong>
+            </figure>
+          </div>
+        </p>
+
+        <h5 class="mb-3 text-primary">1.1: The Scenes</h5>
+        
+        <p class="lead mb-3"> 
+        <strong> Matterport3D </strong> (MP3D) [1] is a large-scale dataset 
+        introduced in 2017, featuring 
+        over 10k images of 90 different building-scale indoor scenes. The dataset 
+        provides annotations with surface reconstructions, camera poses, 
+        color and depth images, as well as semantic segmentation images. For our 
+        project, we use a different version of this dataset which can be obtained 
+        through the Habitat Simulation environment described in 
+        <strong> Section 1.2</strong>. It is important to note that one of the 
+        major differences between this version of the dataset and the original
+        one is that in the former, images have lower resolution and quality. As 
+        it can be observed in <strong>Figure 1</strong>, the images exhibit 
+        visual artifacts, making the task of 3D learning more challenging. 
+        </p>
+        
+        <p class="lead mb-3">
+        As such, this particular version of the dataset
+        has been generally used for traninig Embodied agents in various multi-modal 
+        navigation tasks [2, 3, 4]. We explore this version of the dataset 
+        since we are interested in equipping Embodied agents with 3D learning and 
+        understanding skills within this simulation platform. 
+        </p>
+        
+        <h5 class="mb-3 text-primary">1.2: Simulation and Trajectories</h5>
+        
+        <p class="lead mb-3"> 
+        In order to generate the data for training, validation and testing, we 
+        used the Vision-and-Language (VLN) dataset presented in [2]. This dataset 
+        consists of instructions provided in natural language that describe 
+        a particular path to follow in a MP3D indoor environment. These 
+        instructions correspond with a trajectory in the environment which 
+        can be obtained by using a Shortest-Path-Follower (SPF) from the start and goal 
+        locations associated with the instruction. For this project, we are not 
+        interested in the language instructions. Thus, we do not provide details 
+        on how this dataset has been used to train instruction-following agents. 
+        However, we leverage the visual trajectories associated to such instructions
+        for creating our dataset. 
+        </p>
+
+        <p class="lead mb-3"> 
+        The VLN dataset described above was designed for the <strong>Habitat</strong>
+        [5] simulation platform. Thus, we use [5] to collect 
+        the data for training. Briefly, <strong>Habitat</strong> is a highly efficient 
+        and flexible platform intended for 
+        embodied research. It allows researchers to easily design and configure
+        agents and sensors, as well as AI algorithms for a diverse set of 
+        navigation tasks [2, 3, 4]. 
+        </p>
+
+        <p class="lead mb-3"> 
+        Specifically, we use a SPF, as described above, to get the sensor information 
+        from the simulator based on the VLN dataset. We specifically, extract 
+        RGB, depth and color images for each trajectory, as well as, relative 
+        pose information. The SPF uses has an action space consisting 
+        of four possible actions: <code>MOVE_FORWARD 0.25m</code>, 
+        <code>TURN_LEFT 15deg</code>, <code>TURN_RIGHT 15deg</code>, 
+        and <code>STOP</code>. An example of a resulting trajectory is shown 
+        in <strong>Figure 1</strong>. 
+        </p>        
+
+        <p class="lead mb-3"> 
+          Table 1. shows statistical information about the dataset we 
+          obtained. 
+        </p>  
+
+        <div class="lead mb-3">
+          <table class="styled-table" align="center">
+            <caption>Table 1. Dataset statistics</caption>
+            <thead>
+                <tr>
+                    <th>Data Split</th>
+                    <th>Num. Scenes</th>
+                    <th>Avg. Num. Trajectories per Scene</th>
+                    <th>Total Num. Trajectories</th>
+                    <th>Avg. Num. Steps per Trajectory</th>
+                    <th>Total Num. Steps per Trajectory</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="active-row">
+                  <td style="text-align:center"><code>Train</code></td>
+                  <td style="text-align:center">33</td>
+                  <td style="text-align:center">65</td>
+                  <td style="text-align:center">2,169</td>
+                  <td style="text-align:center">55</td>
+                  <td style="text-align:center">119,976</td>
+                </tr>
+                <tr class="active-row">
+                  <td style="text-align:center"><code>Val</code></td>
+                  <td style="text-align:center">28</td>
+                  <td style="text-align:center">5</td>
+                  <td style="text-align:center">142</td>
+                  <td style="text-align:center">54</td>
+                  <td style="text-align:center">7,750</td>
+                </tr>
+                <tr class="active-row">
+                  <td style="text-align:center"><code>Test</code></td>
+                  <td style="text-align:center">11</td>
+                  <td style="text-align:center">55</td>
+                  <td style="text-align:center">613</td>
+                  <td style="text-align:center">54</td>
+                  <td style="text-align:center">33,412</td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+
+        <h4 class="mb-5 text-primary">Part 2: Approach</h4>
+
+        <p class="lead mb-3"> 
+        In this project, we focus on learning the 3D structure of an indoor 
+        environment from video sequences. We follow prior work [6], which 
+        focuses on 
+        learning Structure-from-Motion (SfM) in outdoor environments purely 
+        from unlabeled color images. The model presented in [6] achieves the 
+        latter using a view-synthesis objective as supervisory signal. 
+        </p>
+        
+        <p class="lead mb-3"> 
+        In our project, we explore if leveraging
+        semantic masks in addition to color images improves learning the 
+        3D structure of an environment. 
+        </p>
+
+        <h5 class="mb-3 text-primary">2.1: The Model</h5>
+        
+        <p class="lead mb-3"> 
+        
+        </p>
+
+        <h5 class="mb-3 text-primary">2.2: The Loss Functions</h5>
+        
+        <p class="lead mb-3"> 
+        
+        </p>
+        </p>
+      
+      </div>
+    </section>
+      
+    <hr>
+
+      <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="experiments">
+        <div class="container">
+          <h3 class="mb-3">EXPERIMENTS</h3>
+        </div>
+      </section>
+
+      <hr>
+
+      <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="results">
+        <div class="container">
+          <h3 class="mb-3">RESULTS</h3>
+        </div>
+      </section>
+      
+      <hr>
+
+      <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="discussion">
+        <div class="container">
+          <h3 class="mb-3">DISCUSSION</h3>
+        </div>
+      </section>
+
+      <hr>
+  
+    <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="ref">
+      <div class="container">
+        <h4 class="mb-3 text-primary">REFERENCES</h4>
+        <p class="lead mb-5"> 
+          <ol>
+            <li>Matterport3D: Learning from RGB-D Data in Indoor Environments 
+              [<a href="https://niessner.github.io/Matterport/">link</a>]
+            </li>
+            <li>Beyond the Nav-Graph: Vision-and-Language Navigation in Continuous Environments
+              [<a href="https://arxiv.org/abs/2004.02857">link</a>]</li>
+            <li>SoundSpaces: Audio-Visual Navigation in 3D Environments
+                [<a href="https://arxiv.org/pdf/1912.11474.pdf">link</a>]</li>
+            <li>DD-PPO: Learning Near-Perfect PointGoal Navigators from 2.5 Billion Frames
+                [<a href="https://arxiv.org/abs/1911.00357">link</a>]</li>
+            <li>Habitat: A Platform for Embodied AI Research
+              [<a href="https://arxiv.org/abs/1904.01201">link</a>]</li>
+            <li>Unsupervised Learning of Depth and Ego-Motion from Video
+                [<a href="https://openaccess.thecvf.com/content_cvpr_2017/papers/Zhou_Unsupervised_Learning_of_CVPR_2017_paper.pdf">link</a>]</li>
+          </ol>
+        </p>
+      </div> 
+    </div> 
+    </section>
+  </div>
+</body>
+</html>
