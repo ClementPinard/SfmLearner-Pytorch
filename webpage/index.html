@@ -224,27 +224,83 @@
 
         <hr>
 
-        <h4 class="mb-5 text-primary">Part 2: Approach</h4>
+        <h4 class="mb-5 text-primary">Part 2: Model</h4>
 
         <p class="lead mb-3"> 
         In this project, we focus on learning the 3D structure of an indoor 
         environment from video sequences. We follow prior work [6], which 
         focuses on 
-        learning Structure-from-Motion (SfM) in outdoor environments purely 
+        learning <strong>Structure-from-Motion</strong> (SfM) in outdoor environments purely 
         from unlabeled color images. The model presented in [6] achieves the 
-        latter using a view-synthesis objective as supervisory signal. 
+        latter using a view-synthesis objective as their main supervisory signal. 
         </p>
         
         <p class="lead mb-3"> 
         In our project, we explore if leveraging
         semantic masks in addition to color images improves learning the 
-        3D structure of an environment. 
+        3D structure of an environment. Like [6], we propose a model that 
+        jointly trains two neural networks; one in charge of predicting depth 
+        from a single view image represented both in RGB and in semantic labels, 
+        and the other in charge of predicting the pose transformaton between 
+        two images. To train the model, we also use a view-synthesis objective 
+        for both the color images and the segmentations and a multi-scale smoothness 
+        loss. Sections 2.1 and 2.2 provide more details on our implementation. 
+        </p>
+
+        <p class="lead mb-3"> 
+         TODO: why do we think semantic information will help?
         </p>
 
         <h5 class="mb-3 text-primary">2.1: The Model</h5>
         
+        <h6 class="mb-3 text-primary">2.1.1: Depth Network</h6>
+
         <p class="lead mb-3"> 
-        
+        The first component of the model is the <strong>Depth Network</strong>, a 
+        CNN-based model which 
+        takes as input a target image represented in color information and 
+        semantic masks and outputs the corresponding depth information. 
+        As shown in <strong>Figure 2</strong>, the <strong>Depth Network</strong> is comprised 
+        by two encoders, one for each input modality, <i>i.e.,</i>
+        color and semantic masks, and one decoder which uses the concatenated 
+        embeddings of each of the encoders to predict the corresponding depth. 
+        </p>
+
+        <p class="lead mb-3" > 
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/depth_network.png" class="img_item_3x">
+            <figure>
+              <strong>Figure 2. Depth Prediction Network
+              </strong>
+            </figure>
+          </div>
+        </p>
+
+        <h6 class="mb-3 text-primary">2.1.2: Pose Network</h6>
+
+        <p class="lead mb-3"> 
+        The second component of the model is the <strong>Pose Network</strong>, 
+        which is also a CNN-based network. 
+        This module takes as input a short sequence of <i>N</i> images also 
+        represented in color and semantic masks. Here,
+        one of the images in the sequence is the target image <i>It</i> and all 
+        other images are the sources <i>Is</i>. The model then outputs the pose 
+        transformation between all source images and the target image. Like the 
+        <strong>Depth Network</strong>, the <strong>Pose Network</strong> is 
+        comprised by two encoders, one for each input modality. Then, the 
+        final embeddings of each encoder are concatenated together and used to 
+        predict the pose transformations between the images. The model is shown 
+        in <strong>Figure 3</strong>.
+        </p>
+
+        <p class="lead mb-3" > 
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/pose_network.png" class="img_item_2x">
+            <figure>
+              <strong>Figure 3. Pose Prediction Network
+              </strong>
+            </figure>
+          </div>
         </p>
 
         <h5 class="mb-3 text-primary">2.2: The Loss Functions</h5>
