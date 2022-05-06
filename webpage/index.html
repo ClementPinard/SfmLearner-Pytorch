@@ -289,6 +289,36 @@
             mask in order to mask out the least important pixels in every scene.
           </p>
 
+          <h5 class="mb-3 text-primary">1: RGB Encoded Network</h5>
+          <p class="lead mb-3">
+          </p>
+
+          <h5 class="mb-3 text-primary">2: Semantic and RGB Encoded Network</h5>
+          <p class="lead mb-3">
+            The semantic segmentation network is one part of the SemSynSin model that needs supervised learning. We believe
+            this addition to the depth network would increase depth map clarity due to the following reasons [8]:
+          </p>
+          <p class="lead mb-3">
+            1. Semantics don't need to be labelled on depth prediction and pose estimation network training data.
+          </p>
+          <p class="lead mb-3">
+            2. Labels for semantic segmentation is possible with work. In fact, it is necessary by today's technological standards
+            as there is no easy way to get high-res and accurate depth maps for dynamic scenes.
+          </p>
+          <p class="lead mb-3">
+            3. There already exists many large datasets that are labeled in a semantically segmented way.
+          </p>
+          <p class="lead mb-3">
+            4. Segmenting semantics is a supervised task.
+          </p>
+          <p class="lead mb-3">
+            5. Previous studies that employ semantic segmentation networks have achieved excellent results.
+          </p>
+
+          <h5 class="mb-3 text-primary">2: Occlusion Mask</h5>
+          <p class="lead mb-3">
+          </p>
+
         </div>
       </section>
 
