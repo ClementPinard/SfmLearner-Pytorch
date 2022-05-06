@@ -90,90 +90,116 @@ python data/habitat_extension/run.py --exp-config data/habitat_extension/mp3d.ya
 The code should generate color, depth and semantic images, and pose information 
 for each trajectory, as shown in the gif above. 
 
-##### TODO: Post-processing steps:
+##### Post-processing steps:
 
-Additional post-processing was performed (does not require simulator):
-- Switching color channels
-- Converting the semantic images to labels 
-- Adding intrinsic parameters to the dataset
-- Statistics 
+Some additional post-processing steps was performed. These steps include switching color channels, converting the semantic 
+images to labels, adding intrinsic parameters to the dataset, and analyzing trajectory statistics for the ego motion.
+None of these post-processing steps require the simulator.
+- Switching Color Channels <br>
+The red and blue channels are swapped in the generation of the RGB output during the trajectory training, therefore,
+they need to be swapped back in order to form the right RGB image sequence. This is achieved in the file convert_bgr_to_rgb.py.
+Each BGR image in the directory is converted into an RGB image using CV2's cvtColor functionality. The corrected RGB
+images then overwrite the old BGR images and this directory of RGB images can then be turned into a GIF. <br>
 
-# TODO: everything below needs to get modified
+- Converting Semantic Images to Labels <br>
+Generated output GIFs were also labelled using semantic labelling. This was done in generate_semantic_masks.py. Each image in
+the GIF outputs were masked with a semantic mask. Each of the masked areas of pixels were replaced by a specified associated color.
+
+- Compute Trajectory Statistics <br>
+The trajectory statistics of generated ego motion were also analyzed. In particular, total number of environments, total
+number of trajectories, and average, min, and max trajectory lengths for each environment were calculated. This was done in
+compute_statistics.py. Total number of environments was calculated by counting the number of directories under each condition
+val_seen, val_unseen, and train. These environment directory names are similar to randomly generated keys in appearance. Total number of
+trajectories was calculated by summing up the total number of directories that were under each of the environments in the three
+conditions val_seen, val_unseen, and train. These trajectory directories were named using numbers. Average, min, and max
+trajectory lengths were computed using python inbuilt .mean, .max and .min functions.
+
+- Adding Intrinsic Parameters to the Dataset <br>
+The associated intrinsic camera transform was saved into the directories of each of the RGB ego motion GIFs generated. 
+The code that performs this can be found in add_intrinsics.py.
 
 ## Training
-Once the data are formatted following the above instructions, you should be able to train the model by running the following command
+During the training stage, the model predicts depth and pose information through a view-synthesis loss. Based on previous work,
+there were two networks that required training–the pose network and the depth network. The depth prediction network interprets the inputs
+from the RGB-encoder network and the semantic network into an applicable depth map.
+<br>
+The pose network predicts the pose transformation between a view at time t=n and a view at time t=n+1. The predictions are
+warps between timeframes. 
+<br>
+Each environment and trajectory was trained for a total of 50 epochs due to time and resource constraints. Additional epochs
+of time were added as time allowed.
+
+Training can be done using the following command:
 ```bash
-python3 train.py /path/to/the/formatted/data/ -b4 -m0.2 -s0.1 --epoch-size 3000 --sequence-length 3 --log-output [--with-gt]
+python train_mp3d.py data/mp3d_sfm/ --log-output --mask-loss-weight 0.0 --with-semantics --batch-size 16
 ```
-You can then start a `tensorboard` session in this folder by
-```bash
-tensorboard --logdir=checkpoints/
-```
-and visualize the training progress by opening [https://localhost:6006](https://localhost:6006) on your browser. If everything is set up properly, you should start seeing reasonable depth prediction after ~30K iterations when training on KITTI.
+
 
 ## Evaluation
+During the inference stage, the model is given an input image and a desired set of poses, and uses projective geometry 
+and the predicted depth to synthesize the new viewpoints. 
 
-Disparity map generation can be done with `run_inference.py`
+Pose inference can be run using the following command:
 ```bash
-python3 run_inference.py --pretrained /path/to/dispnet --dataset-dir /path/pictures/dir --output-dir /path/to/output/dir
+python run_pose_inference.py --pretrained-disp checkpoints/mp3d_sfm/exp1_04-26-23:56/dispnet_model_best.pth.tar  --pretrained-pose checkpoints/mp3d_sfm/exp1_04-26-23:56/exp_pose_model_best.pth.tar  --output-dir out/exp1_val/vs_unseen
 ```
-Will run inference on all pictures inside `dataset-dir` and save a jpg of disparity (or depth) to `output-dir` for each one see script help (`-h`) for more options.
-
-Disparity evaluation is avalaible
+And depth inference can be run using the following command:
 ```bash
-python3 test_disp.py --pretrained-dispnet /path/to/dispnet --pretrained-posenet /path/to/posenet --dataset-dir /path/to/KITTI_raw --dataset-list /path/to/test_files_list
-```
-
-Test file list is available in kitti eval folder. To get fair comparison with [Original paper evaluation code](https://github.com/tinghuiz/SfMLearner/blob/master/kitti_eval/eval_depth.py), don't specify a posenet. However, if you do,  it will be used to solve the scale factor ambiguity, the only ground truth used to get it will be vehicle speed which is far more acceptable for real conditions quality measurement, but you will obviously get worse results.
-
-Pose evaluation is also available on [Odometry dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php). Be sure to download both color images and pose !
-
-```bash
-python3 test_pose.py /path/to/posenet --dataset-dir /path/to/KITIT_odometry --sequences [09]
+python run_depth_inference.py --pretrained bach/checkpoints/mp3d_sfm/04-26-23:56/dispnet_model_best.pth.tar  --dataset-dir data/mp3d_sfm/val_unseen  --output-dir exp1_val/depth_unseen --with-disp --with-depth
 ```
 
-**ATE** (*Absolute Trajectory Error*) is computed as long as **RE** for rotation (*Rotation Error*). **RE** between `R1` and `R2` is defined as the angle of `R1*R2^-1` when converted to axis/angle. It corresponds to `RE = arccos( (trace(R1 @ R2^-1) - 1) / 2)`.
-While **ATE** is often said to be enough to trajectory estimation, **RE** seems important here as sequences are only `seq_length` frames long.
 
 ## Pretrained Nets
 
 [Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
 
-Arguments used :
+Arguments used:
 
 ```bash
 python3 train.py /path/to/the/formatted/data/ -b4 -m0 -s2.0 --epoch-size 1000 --sequence-length 5 --log-output --with-gt
 ```
 
-### Depth Results
+### Results
+The following depth GIF results were obtained on new testing data after training the models.
+<br>
+<div align="center">
+    <img src="assets/ep-772_EU6Fwq7SyZv-772-rgb-25.gif"/>
+</div>
+This GIF shows a depth "heatmap" of a given traversal in a given environment. The results are not the clearest when compared
+to the ground truth to the left of it, however, you can still make out the environment.
+<br>
+<div align="center">
+    <img src="assets/ep-1210_8194nk5LbLH-1210-rgb-31.gif"/>
+</div>
+This GIF is an example of output generated when the model has been trained directly on the ground truth. There are some 
+warping issues, but it is still clear what the environment is and where the trajectory of the ego motion is going when
+compared to the ground truth.
+<br>
+<div align="center">
+    <img src="assets/ep-1837_Z6MFQCViBuw-1837-rgb-64.gif"/>
+</div>
+This GIF is an example of output generated when the model predicts the next frame of the image. This results in even more
+noticeable warping issues during certain segments of the GIF, but it is still pretty clear what the environment is and where
+the trajectory is going.
 
-| Abs Rel | Sq Rel | RMSE  | RMSE(log) | Acc.1 | Acc.2 | Acc.3 |
-|---------|--------|-------|-----------|-------|-------|-------|
-| 0.181   | 1.341  | 6.236 | 0.262     | 0.733 | 0.901 | 0.964 | 
+<br>
+<br>
+Here were the trajectory statistics obtained after training the pose network.
 
-### Pose Results
-
-5-frames snippets used
-
-|    | Seq. 09              | Seq. 10              |
-|----|----------------------|----------------------|
-|ATE | 0.0179 (std. 0.0110) | 0.0141 (std. 0.0115) |
-|RE  | 0.0018 (std. 0.0009) | 0.0018 (std. 0.0011) | 
+| Split | Number of Scenes | # Trajectories/Scene | # of Total Trajectories | # steps/Trajectory |
+|-------|------------------|----------------------|-------------------------|--------------------|
+| Train | 33               | 65                   | 2169                    | 55 / 119,976       |
+| Val   | 28               | 5                    | 142                     | 54 / 7750          |
+| Test  | 11               | 55                   | 613                     | 54 / 33,412        |
 
 
-## Discussion
-
-Here I try to link the issues that I think raised interesting questions about scale factor, pose inference, and training hyperparameters
-
- - [Issue 48](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/48) : Why is target frame at the center of the sequence ?
- - [Issue 39](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/39) : Getting pose vector without the scale factor uncertainty
- - [Issue 46](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/46) : Is Interpolated groundtruth better than sparse groundtruth ?
- - [Issue 45](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/45) : How come the inverse warp is absolute and pose and depth are only relative ?
- - [Issue 32](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/32) : Discussion about validation set, and optimal batch size
- - [Issue 25](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/25) : Why filter out static frames ?
- - [Issue 24](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/24) : Filtering pixels out of the photometric loss
- - [Issue 60](https://github.com/ClementPinard/SfmLearner-Pytorch/issues/60) : Inverse warp is only one way !
+## Conclusion and Future Goals
+In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories given by the
+MatterPort3D dataset. We believe that the model would be even more accurate at portraying these indoor trajectories if they
+were given even more training time.
+Some things that we can try going forward include:
+- 3D point loss
+- Improve multi-scale loss
 
 ## Other Implementations
-
 [TensorFlow](https://github.com/tinghuiz/SfMLearner) by tinghuiz (original code, and paper author)
