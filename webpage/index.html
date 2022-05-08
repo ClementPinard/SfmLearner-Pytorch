@@ -115,7 +115,7 @@
           images of a scene from different viewpoints. This is a highly 
           challenging task as it requires developing algorithms capable of 
           understanding the nature of 3D environments, <i>e.g.,</i> the semantic
-          information in a scene, the relationship between objects in a scene, 
+          information in a scene, the relationship between objects in a scene, and
           the layout of environments and occlusions. 
         </p>
 
@@ -182,7 +182,7 @@
         
         <p class="lead mb-3">
         As such, this particular version of the dataset
-        has been generally used for traninig Embodied agents in various multi-modal 
+        has been generally used for training Embodied agents in various multi-modal
         navigation tasks [2, 3, 4]. We explore this version of the dataset 
         since we are interested in equipping Embodied agents with 3D learning and 
         understanding skills within this simulation platform. 
@@ -443,18 +443,25 @@
         <div class="container">
           <h3 class="mb-3">EXPERIMENTS</h3>
 
-          <h5 class="mb-3 text-primary">3.1 Tr4ining Det4ils</h5>
+          <h5 class="mb-3 text-primary">3.1 Training Details</h5>
           
           <p class="lead mb-3">
-            Our experiments were conducted in 4 server equipped with 4 GeForce RTX 2080
-            GPUs, e4ch with 10GB of memory, Ubuntu 18.04, Pytorch 1.11 4nd CUD4 11.4.
-            With this setup, e4ch experiment took 4round 4-5 d4ys to complete. 
-            For this re4son, we were only 4ble to define 4nd tr4in three m4in 
+            Our experiments were conducted in a server equipped with 4 GeForce RTX 2080
+            GPUs, each with 10GB of memory, Ubuntu 18.04, Pytorch 1.11 and CUD4 11.4.
+            With this setup, each experiment took around 4-5 days to complete.
+            For this reason, we were only able to define and train three main
             experiments: 
             <ol>
-              <li><strong>RGB-only</strong> In this experiment we simply 4d4pted the model introduced 
-                in [6] to work on our d4t4set. 
-              <li><strong>RGB + 4rtif4ct M4sk:</strong> This experiment </li>
+              <li><strong>Artifact Mask</strong>
+                In this experiment an artifact mask was generated in order to mask out occlusion pixels that were less relevant
+                to the prediction of the next frame.
+              </li>
+              <li><strong>RGB-only</strong> In this experiment we simply adapted the model introduced
+                in [6] to work on our dataset.
+              </li>
+              <li><strong>RGB and Semantic Encoded</strong>
+                In this experiment both RGB and semantic encoded networks were adapted to the model described in [6] to work
+                on our dataset.
               </li>
             </ol>
           </p>
@@ -462,38 +469,51 @@
           <p class="lead mb-3">
           Due to time and resource constraints, three experiments were conducted for this project: feeding an RGB encoded network
             into the depth network, feeding RGB and semantic encoded networks into the depth network, and using an occlusion/artifact
-            mask in order to mask out the least important pixels in every scene.
+            mask in order to remove the "least important" pixels in every frame.
           </p>
 
-          <h5 class="mb-3 text-primary">1: RGB Encoded Network</h5>
+          <h5 class="mb-3 text-primary">1: Artifact Mask</h5>
           <p class="lead mb-3">
+            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using an artifact
+            mask to detect the least important pixels for predicting the next step of the trajectory. Ideally, this mask would
+            remove the pixels least important for predicting the next frame, which should optimize the ego motion video produced
+            by the model.
           </p>
 
-          <h5 class="mb-3 text-primary">2: Semantic and RGB Encoded Network</h5>
+          <h5 class="mb-3 text-primary">2: RGB Encoded Network</h5>
+          <p class="lead mb-3">
+            As mentioned above, this particular experiment adapted Unsupervised Learning of Depth and Ego Motion's depth network
+            to the VLN trajectory and Matterport3D datasets [6]. As described in section 2.3.1 in Approach above, bilinear interpolation
+            was applied to the RGB colored input scenes. For larger spatial regions where local bilinear interpolation of pixels
+            made less sense, the loss function described in 2.3.3 was applied instead.
+          </p>
+
+          <h5 class="mb-3 text-primary">3: Semantic and RGB Encoded Network</h5>
           <p class="lead mb-3">
             The semantic segmentation network is one part of the SemSynSin model that needs supervised learning. We believe
             this addition to the depth network would increase depth map clarity due to the following reasons [8]:
           </p>
-          <p class="lead mb-3">
-            1. Semantics don't need to be labelled on depth prediction and pose estimation network training data.
-          </p>
-          <p class="lead mb-3">
-            2. Labels for semantic segmentation is possible with work. In fact, it is necessary by today's technological standards
+          <ol>
+              <li>
+                Semantics don't need to be labelled on depth prediction and pose estimation network training data.
+              </li>
+            <li>
+              Labels for semantic segmentation is possible with work. In fact, it is necessary by today's technological standards
             as there is no easy way to get high-res and accurate depth maps for dynamic scenes.
-          </p>
+              </li>
+            <li>
+              There already exists many large datasets that are labeled in a semantically segmented way.
+              </li>
+            <li>
+              Segmenting semantics is a supervised task.
+              </li>
+            <li>
+             Previous studies that employ semantic segmentation networks have achieved excellent results.
+              </li>
+            </ol>
           <p class="lead mb-3">
-            3. There already exists many large datasets that are labeled in a semantically segmented way.
-          </p>
-          <p class="lead mb-3">
-            4. Segmenting semantics is a supervised task.
-          </p>
-          <p class="lead mb-3">
-            5. Previous studies that employ semantic segmentation networks have achieved excellent results.
-          </p>
-
-          <h5 class="mb-3 text-primary">2: Occlusion Mask</h5>
-        
-          <p class="lead mb-3">
+            Based on these reasons, we have used both the RGB encoded network and the semantic encoded network for a final
+            experiment. These were fed into the depth network in the manner described in section 2.1 of Approach.
           </p>
 
         </div>
@@ -599,6 +619,33 @@
       <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="discussion">
         <div class="container">
           <h3 class="mb-3">DISCUSSION</h3>
+
+        <p class="lead mb-3">
+          S
+        </p>
+
+        <p class="lead mb-3">
+          In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories
+          given by the MatterPort3D dataset. We believe that the model would be even more accurate at portraying these
+          indoor trajectories if they were given even more training time.
+        </p>
+
+        <p class="lead mb-3">
+          Some things that we can try going forward include:
+        </p>
+        <ol>
+          <li><strong>3D point loss:</strong>
+             3D spatial information is considered for this kind of loss. The depth map for the specified target frame can be
+            used to grab 3D coordinates for a specific pixel in the target frame. In a similar method, the 3D coordinates for
+            the source pixel associated with that specific target pixel can be obtained by applying a transformation matrix to
+            the depth maps. After these two have been obtained, 3D loss can be calculated as the difference between the transformed
+            source and target pixel. Lower loss indicates better 3D point loss.
+          </li>
+          <li><strong>Improve multi-scale loss:</strong>
+
+          </li>
+        </ol>
+
         </div>
       </section>
 
