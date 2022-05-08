@@ -9,7 +9,7 @@ This code contains the implementation for the final project of 16-726.
 </div>
 
 The backbone of the code is based on this [repo](https://github.com/ClementPinard/SfmLearner-Pytorch) 
-which is implements the following paper: 
+which implements the following paper: 
 
 **Unsupervised Learning of Depth and Ego-Motion from Video** by
 [Tinghui Zhou](https://people.eecs.berkeley.edu/~tinghuiz/), 

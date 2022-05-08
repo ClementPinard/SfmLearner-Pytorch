@@ -14,6 +14,8 @@
   <link href="css/project.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
   <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/MathJax.js?config=default'></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 
 <!-- Navigation bar on the side -->
@@ -106,11 +108,39 @@
     <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="approach">
       <div class="container">
         <h3 class="mb-3">APPROACH</h3>
+        
+        <p class="lead mb-3"> 
+          In this project, we are interested in learning the 3D structure of 
+          complex indoor environments via view-synthesis. View synthesis allows generating 
+          images of a scene from different viewpoints. This is a highly 
+          challenging task as it requires developing algorithms capable of 
+          understanding the nature of 3D environments, <i>e.g.,</i> the semantic
+          information in a scene, the relationship between objects in a scene, 
+          the layout of environments and occlusions. 
+        </p>
+
+        <p class="lead mb-3"> 
+          As mentioned above, we build on prior work which focused on learning 
+          <strong>Structure-from-Motion</strong> (SfM) from single-view images 
+          in outdoor environments.
+          We first asses the model's performance on complex indoor environments, 
+          and then explore methods for improving the results. Particularily, we
+          are interested in explicitly incorporating semantic knowledge since
+          it is crucial for scene understanding. 
+        </p>
+
+        <p class="lead mb-3"> 
+          In the following sub-sections, we further describe the procedure 
+          followed in this project. Specifically, in <strong>Part 1</strong>, we 
+          described our methodology for obtaining the training data. Then, in 
+          <strong>Part 2</strong>, we describe the model and the loss functions 
+          we used. 
+        </p>
+
         <h4 class="mb-3 text-primary">Part 1: The Dataset</h4>
         
         <p class="lead mb-3"> 
-        In this project, we are interested in learning the 3D structure of 
-        indoor environments. Specifically, we used the 
+        We use the 
         <a href="https://niessner.github.io/Matterport/">Matterport3D </a> (MP3D) 
         dataset for our project and the 
         <a href="https://aihabitat.org">Habitat </a> simulation environment to 
@@ -122,14 +152,14 @@
         
         <p class="lead mb-3" > 
           <div class="lead mb-3 img_container" align="center">
-            <img src="data/project/gt_depth_example.gif" class="img_item">
-            <img src="data/project/gt_rgb_example.gif" class="img_item">
-            <img src="data/project/gt_semantic_example.gif" class="img_item">
+            <img src="data/project/gt_depth_example.gif" class="img_item_2">
+            <img src="data/project/gt_rgb_example.gif" class="img_item_2">
+            <img src="data/project/gt_semantic_example.gif" class="img_item_2">
             <figure>
               <strong>Figure 1. Matterport3D trajectory obtained through the 
                 Habitat simulation environment. 
               </strong>
-            </figure>
+          </figure>
           </div>
         </p>
 
@@ -247,30 +277,29 @@
         <h4 class="mb-5 text-primary">Part 2: Model</h4>
 
         <p class="lead mb-3"> 
-        In this project, we focus on learning the 3D structure of an indoor 
+        As mentioned before, we focus on learning the 3D structure of an indoor 
         environment from video sequences. We follow prior work [6], which 
         focuses on 
-        learning <strong>Structure-from-Motion</strong> (SfM) in outdoor environments purely 
-        from unlabeled color images. The model presented in [6] achieves the 
-        latter using a view-synthesis objective as their main supervisory signal. 
+        learning <strong>Structure-from-Motion</strong> (SfM) in outdoor environments. 
+        This model achieves the latter purely from training on unlabeled color 
+        images and through a view-synthesis objective function as their main 
+        supervisory signal. 
         </p>
         
         <p class="lead mb-3"> 
-        In our project, we explore if leveraging
-        semantic masks in addition to color images improves learning the 
-        3D structure of an environment. Like [6], we propose a model that 
+        In our project, we explore if explicitly incorporating semantic information,
+        in the form of masks, enables the model to better understand and learn 
+        to model the 3D structure of a given scene. Our model  
         jointly trains two neural networks; one in charge of predicting depth 
-        from a single view image represented both in RGB and in semantic labels, 
+        from a single-view image represented both in RGB and in semantic labels, 
         and the other in charge of predicting the pose transformaton between 
         two images. To train the model, we also use a view-synthesis objective 
         for both the color images and the segmentations and a multi-scale smoothness 
-        loss. Sections 2.1 and 2.2 provide more details on our implementation. 
+        loss. <strong>Section 2.1</strong> and <strong>Section 2.2</strong> 
+        provide more details on the model implementation, and 
+        <strong>Section 2.3</strong> dives into the details of the objective 
+        functions.
         </p>
-
-        <p class="lead mb-3"> 
-         TODO: why do we think semantic information will help?
-        </p>
-
         
         <h5 class="mb-3 text-primary">2.1. Depth Network</h5>
 
@@ -322,13 +351,89 @@
           </div>
         </p>
 
-        <h5 class="mb-3 text-primary">2.3: Objective Functions and View-Synthesis</h5>
+        <h5 class="mb-3 text-primary">2.3: Objective Functions</h5>
+        
+        <h6 class="mb-3 text-primary">2.3.1: View Synthesis</h6>
+
+        <p class="lead mb-3"> 
+        The main objective function in this project comes from a view synthesis
+        task: given one input view of a scene, \(I_t\), the goal is to synthesize
+        a new image of the scene from a different camera pose. In [6], the 
+        synthesis process is achieved by predicting both the depth information 
+        of a target viewpoint, \(D_t\), and the pose transformations between the target 
+        view, \(T_{t \rightarrow n}\), where \(n\) is the sub-script of the nearby
+        view, \(I_n\). Here, the depth and pose information is learned through 
+        the CNN-based modules, which were explained in the previous sections. 
+        </p>
+
+        <p class="lead mb-3"> 
+        The view-synthesis objective is given by the following equation:
+        $$ L_{vs} = \sum_{n} \sum_{p} | I_t(p) - \hat{I}_n(p) | $$ where
+        \(p\) is a pixel index, and \(\hat{I}_n\) is a nearby image warped 
+        into the target's coordinate frame. To warp the nearby image 
+        to the target frame, we can project \(p_t\), a homogeneous coordinate 
+        of a pixel in the target image onto the nearby image by following 
+        the equation below, 
+        $$ p_n \sim K \cdot T_{t \rightarrow n} \cdot D_t(p_t) \cdot K^{-1} \cdot p_t $$
+        where \(p_t\) represents the homogeneous coordinates of a pixel in the 
+        target image, \(K\) is the intrinsics matrix, \(D_t\) and \(T_{t \rightarrow n}\)
+        are the predicted depth and pose, respectively. 
+        </p>
+
+        <p class="lead mb-3"> 
+        Now, the coordinate from the previous equation correspond to continous 
+        values. To obtain the value \(I_n(p_n)\) to represent \(\hat{I}_s(p_t)\), 
+        we follow two interpolation methods: 1) bilinear interpolation for 
+        color images, which linearly interpolates the top-left, top-right, 
+        bottom-left and bottom-right pixel neighbors, and 2) nearest interpolation 
+        for the semantic masks, to preserve the original label values.
+        </p>
+
+        <p class="lead mb-3"> 
+        Thus, in summary, the view-synthesis objective is applied to both the 
+        color images and the semantic masks by warping the source image into 
+        the target frame using the predicted depth and poses, as well as the 
+        corresponding interpolation method. 
+        </p>
+        
+        <h6 class="mb-3 text-primary">2.3.2: Artifact Mask</h6>
         
         <p class="lead mb-3"> 
-        
+        Unlike [6], the scenes in our indoor environments are assumed to be 
+        static, i.e., there are no dynamic objects at any point in a given 
+        sequence. However, existing challenges with the dataset include 1) 
+        occluding objects and 2) visual artifacts at certain viewpoints resulting 
+        from the low quality reconstructions of the images. 
         </p>
+
+        <p class="lead mb-3"> 
+        To deal with this, the <strong>Pose Network</strong> is coupled with 
+        an <strong>Artifact Network</strong> which is trained to predict a pixel 
+        mask, \(E_n(p)\) that represents whether a pixel contributes
+        to modeling the 3D structure of a given environment. This mask is used
+        to weigh each pixel coordinate in the view-synthesis loss as, 
+        $$ L_{vs} = \sum_{n} \sum_{p} E_n(p) | I_t(p) - \hat{I}_n(p) $$
+        To avoid the network to predict an all-zeroes mask, the objective is 
+        coupled with a regularization term, \(L_{reg}(E_n)\). 
         </p>
-      
+
+        <h6 class="mb-3 text-primary">2.3.3: Large Spatial Regions </h6>
+
+        <p class="lead mb-3"> 
+        The final objective function is used to explicitly allow to propagate gradients 
+        from large spatial regions in the image, as opposed to only considering 
+        the 4 local neighbors of the pixel, as explained in Section 2.3.1. To
+        do this, depth maps are predicted at different scales and the \(L_1\) loss 
+        of their second-order gradients is minimized as in [6]. 
+        </p>
+
+        <p class="lead mb-3"> 
+          The final loss then becomes:
+          $$ L = \sum_{l} L_{vs}^{l} + \lambda L_{ms}^{l} + \beta \sum_{n} L_{reg}(E^{l}_n)$$
+          here, \(l\) is the index of the image scale, \(L_{ms}\) is the multi-scale
+          loss and \(\lambda\) and \(\beta\) are weighing hyper-parameters. 
+        </p>
+
       </div>
     </section>
       
