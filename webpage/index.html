@@ -472,8 +472,10 @@
 
           <h5 class="mb-3 text-primary">1: Artifact Mask</h5>
           <p class="lead mb-3">
-            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using the artifact
-            mask to detect the least important .
+            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using an artifact
+            mask to detect the least important pixels for predicting the next step of the trajectory. Ideally, this mask would
+            remove the pixels least important for predicting the next frame, which should optimize the ego motion video produced
+            by the model.
           </p>
 
           <h5 class="mb-3 text-primary">2: RGB Encoded Network</h5>
@@ -485,21 +487,27 @@
             The semantic segmentation network is one part of the SemSynSin model that needs supervised learning. We believe
             this addition to the depth network would increase depth map clarity due to the following reasons [8]:
           </p>
-          <p class="lead mb-3">
-            1. Semantics don't need to be labelled on depth prediction and pose estimation network training data.
-          </p>
-          <p class="lead mb-3">
-            2. Labels for semantic segmentation is possible with work. In fact, it is necessary by today's technological standards
+          <ol>
+              <li>
+                Semantics don't need to be labelled on depth prediction and pose estimation network training data.
+              </li>
+            <li>
+              Labels for semantic segmentation is possible with work. In fact, it is necessary by today's technological standards
             as there is no easy way to get high-res and accurate depth maps for dynamic scenes.
-          </p>
+              </li>
+            <li>
+              There already exists many large datasets that are labeled in a semantically segmented way.
+              </li>
+            <li>
+              Segmenting semantics is a supervised task.
+              </li>
+            <li>
+             Previous studies that employ semantic segmentation networks have achieved excellent results.
+              </li>
+            </ol>
           <p class="lead mb-3">
-            3. There already exists many large datasets that are labeled in a semantically segmented way.
-          </p>
-          <p class="lead mb-3">
-            4. Segmenting semantics is a supervised task.
-          </p>
-          <p class="lead mb-3">
-            5. Previous studies that employ semantic segmentation networks have achieved excellent results.
+            Based on these reasons, we have used both the RGB encoded network and the semantic encoded network for a final
+            experiment. These were fed into the depth network as described in section 2.1 of Approach.
           </p>
 
         </div>
