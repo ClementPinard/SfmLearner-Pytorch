@@ -452,14 +452,16 @@
             For this reason, we were only able to define and train three main
             experiments: 
             <ol>
+              <li><strong>Artifact Mask</strong>
+                In this experiment an artifact mask was generated in order to mask out occlusion pixels that were less relevant
+                to the prediction of the next frame.
+              </li>
               <li><strong>RGB-only</strong> In this experiment we simply adapted the model introduced
                 in [6] to work on our dataset.
               </li>
               <li><strong>RGB and Semantic Encoded</strong>
-                In this experiment .
-              </li>
-              <li><strong>Artifact Mask</strong>
-                In this experiment .
+                In this experiment both RGB and semantic encoded networks were adapted to the model described in [6] to work
+                on our dataset.
               </li>
             </ol>
           </p>
@@ -467,7 +469,7 @@
           <p class="lead mb-3">
           Due to time and resource constraints, three experiments were conducted for this project: feeding an RGB encoded network
             into the depth network, feeding RGB and semantic encoded networks into the depth network, and using an occlusion/artifact
-            mask in order to mask out the least important pixels in every scene.
+            mask in order to remove the "least important" pixels in every frame.
           </p>
 
           <h5 class="mb-3 text-primary">1: Artifact Mask</h5>
@@ -480,6 +482,10 @@
 
           <h5 class="mb-3 text-primary">2: RGB Encoded Network</h5>
           <p class="lead mb-3">
+            As mentioned above, this particular experiment adapted Unsupervised Learning of Depth and Ego Motion's depth network
+            to the VLN trajectory and Matterport3D datasets [6]. As described in section 2.3.1 in Approach above, bilinear interpolation
+            was applied to the RGB colored input scenes. For larger spatial regions where local bilinear interpolation of pixels
+            made less sense, the loss function described in 2.3.3 was applied instead.
           </p>
 
           <h5 class="mb-3 text-primary">3: Semantic and RGB Encoded Network</h5>
@@ -507,7 +513,7 @@
             </ol>
           <p class="lead mb-3">
             Based on these reasons, we have used both the RGB encoded network and the semantic encoded network for a final
-            experiment. These were fed into the depth network as described in section 2.1 of Approach.
+            experiment. These were fed into the depth network in the manner described in section 2.1 of Approach.
           </p>
 
         </div>
