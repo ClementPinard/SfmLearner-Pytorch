@@ -115,7 +115,7 @@
           images of a scene from different viewpoints. This is a highly 
           challenging task as it requires developing algorithms capable of 
           understanding the nature of 3D environments, <i>e.g.,</i> the semantic
-          information in a scene, the relationship between objects in a scene, 
+          information in a scene, the relationship between objects in a scene, and
           the layout of environments and occlusions. 
         </p>
 
@@ -182,7 +182,7 @@
         
         <p class="lead mb-3">
         As such, this particular version of the dataset
-        has been generally used for traninig Embodied agents in various multi-modal 
+        has been generally used for training Embodied agents in various multi-modal
         navigation tasks [2, 3, 4]. We explore this version of the dataset 
         since we are interested in equipping Embodied agents with 3D learning and 
         understanding skills within this simulation platform. 
@@ -449,11 +449,17 @@
             mask in order to mask out the least important pixels in every scene.
           </p>
 
-          <h5 class="mb-3 text-primary">1: RGB Encoded Network</h5>
+          <h5 class="mb-3 text-primary">1: Artifact Mask</h5>
+          <p class="lead mb-3">
+            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using the artifact
+            mask to detect the least important .
+          </p>
+
+          <h5 class="mb-3 text-primary">2: RGB Encoded Network</h5>
           <p class="lead mb-3">
           </p>
 
-          <h5 class="mb-3 text-primary">2: Semantic and RGB Encoded Network</h5>
+          <h5 class="mb-3 text-primary">3: Semantic and RGB Encoded Network</h5>
           <p class="lead mb-3">
             The semantic segmentation network is one part of the SemSynSin model that needs supervised learning. We believe
             this addition to the depth network would increase depth map clarity due to the following reasons [8]:
@@ -473,10 +479,6 @@
           </p>
           <p class="lead mb-3">
             5. Previous studies that employ semantic segmentation networks have achieved excellent results.
-          </p>
-
-          <h5 class="mb-3 text-primary">2: Occlusion Mask</h5>
-          <p class="lead mb-3">
           </p>
 
         </div>
