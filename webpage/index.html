@@ -236,8 +236,8 @@
             <thead>
                 <tr>
                     <th>Data Split</th>
-                    <th>Num. Scenes</th>
-                    <th>Avg. Num. Trajectories per Scene</th>
+                    <th>Num. Environments</th>
+                    <th>Avg. Num. Trajectories per Environment</th>
                     <th>Total Num. Trajectories</th>
                     <th>Avg. Num. Steps per Trajectory</th>
                     <th>Total Num. Steps per Trajectory</th>
@@ -254,7 +254,7 @@
                 </tr>
                 <tr class="active-row">
                   <td style="text-align:center"><code>Val</code></td>
-                  <td style="text-align:center">28</td>
+                  <td style="text-align:center">33</td>
                   <td style="text-align:center">5</td>
                   <td style="text-align:center">142</td>
                   <td style="text-align:center">54</td>
@@ -526,14 +526,90 @@
           <h3 class="mb-3">RESULTS</h3>
           
           <p class="lead mb-3"> 
-            In this section, we comp4re the results obt4ined in e4ch of our 
-            proposed experiments. We independently 4sses the perform4nce of the 
-            depth 4nd pose networks through qu4littive 4nd qu4ntit4tive tests.:
-            <ol>
-              <li>Depth Network: </li>
-              
-            </ol>
+            In this section, we compare the results obtained on each of our 
+            proposed experiments. Because the approach is modular, each of the 
+            components, <i>i.e.,</i> depth network, pose netork, and artifact 
+            network can be independently assessed. As such, we designed both 
+            qualitative and quantitative experiments for these modules. In the 
+            paragraphs that follow, we explain each experiment in more detail 
+            and show according results for each experiment.
           </p>
+
+          <h5 class="mb-3 text-primary">Training curves</h5>
+          
+          <p class="lead mb-3"> 
+           Befor diving into the qualitative results, we show the trainining curves 
+           for each experiment in Figure 4
+
+      
+          </p>
+
+          <h5 class="mb-3 text-primary">Qualitative Tests</h5>
+
+          <h6 class="mb-3 text-primary">Depth Network</h6>
+
+          <p class="lead mb-3"> 
+            For this qualitative experiment, we simply ran depth inference on 
+            a set of trajectories from the test set. We note that, in contrast 
+            to the validation set, the environments in the test set were never 
+            seen by the networks. The environments in the validation set are 
+            the same as in the train set, only the trajectories are different.       
+          </p>
+
+          <p class="lead mb-3" > 
+            In Figure 5. we show depth predictions for <strong>experiment 1</strong> (left-most)
+            <strong>experiment 2</strong> (center) and <strong>experiment 3</strong> (right-most).
+            First, analyzing the depth results from experiment 1 (second column), we can observe 
+            that using only RGB images on this dataset, the model markedly underfitted.
+            Here, regardless of the environment and trajectory, the model always predicts very 
+            similar results that look like two bright vertical rectangles to the left and right 
+            and a darker rectangle to the center. The model also does not seem to understand 
+            depth, as it tends to predict darker spots on the bottom center, whereas it should 
+            be the opposite since in these visualizations darker means further away. 
+          </p>
+
+          <p class="lead mb-3" > 
+            In the second experiment, which now includes the artifact mask, 
+            it seems that the model better understands depth: it tends to predict 
+            ceilings to be further away (darker) 
+          </p>
+
+          <p class="lead mb-3" > 
+            
+            <div class="lead mb-3 img_container" align="center">
+              <img src="data/project/exp1_val/depth_unseen/ep-262_2azQ1b91cZZ-262-rgb-62.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-262_2azQ1b91cZZ-262-rgb-62.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-262_2azQ1b91cZZ-262-rgb-62.gif" class="img_item">
+
+              <img src="data/project/exp1_val/depth_unseen/ep-412_pLe4wQe7qrG-412-rgb-30.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-412_pLe4wQe7qrG-412-rgb-30.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-412_pLe4wQe7qrG-412-rgb-30.gif" class="img_item">
+
+              <img src="data/project/exp1_val/depth_unseen/ep-670_zsNo4HB9uLZ-670-rgb-57.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-670_zsNo4HB9uLZ-670-rgb-57.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-670_zsNo4HB9uLZ-670-rgb-57.gif" class="img_item">
+
+              <img src="data/project/exp1_val/depth_unseen/ep-694_EU6Fwq7SyZv-694-rgb-45.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-694_EU6Fwq7SyZv-694-rgb-45.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-694_EU6Fwq7SyZv-694-rgb-45.gif" class="img_item">
+
+              <img src="data/project/exp1_val/depth_unseen/ep-850_oLBMNvg9in8-850-rgb-88.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-850_oLBMNvg9in8-850-rgb-88.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-850_oLBMNvg9in8-850-rgb-88.gif" class="img_item">
+
+              <img src="data/project/exp1_val/depth_unseen/ep-1066_oLBMNvg9in8-1066-rgb-47.gif" class="img_item">
+              <img src="data/project/exp2_val/depth_unseen/ep-1066_oLBMNvg9in8-1066-rgb-47.gif" class="img_item">
+              <img src="data/project/exp3_val/depth_unseen/ep-1066_oLBMNvg9in8-1066-rgb-47.gif" class="img_item">
+  
+              <figure>
+                <strong>Figure 4. Depth predictions. The left-most RGB and depth columns correspond to the results 
+                  for experiment1, the center columns correspond to experiment 2, and the 
+                  right-most columns correspond to experiment 3. 
+                </strong>
+            </figure>
+            </div>
+          </p>
+
 
         </div>
       </section>

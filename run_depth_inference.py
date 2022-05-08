@@ -43,9 +43,12 @@ def main(args):
             
             input_dir = dir_/ep/'rgb'
             test_files = natsorted(input_dir.walkfiles('*.png'))
+            
+            sem_input_dir = dir_/ep/'semantics'
+            sem_test_files = natsorted(input_dir.walkfiles('*.png'))
            
             img_list = []
-            for file in tqdm(test_files):
+            for i, file in enumerate(tqdm(test_files)):
 
                 file_path, _ = file.relpath(args.dataset_dir).splitext()
                 file_name = '-'.join(file_path.splitall()[1:])
@@ -53,7 +56,13 @@ def main(args):
                 out_img = imread(file)
                 tgt_img = array2tensor(out_img).to(device)
                 
-                disp = disp_net(tgt_img)
+                if args.with_semantics:
+                    sem_img = imread(sem_test_files[i])
+                    sem_tgt_img = array2tensor(sem_img).to(device)
+                    disp = disp_net(tgt_img, sem_tgt_img)
+                else:
+                    disp = disp_net(tgt_img)
+                    
                 if args.with_disp:
                     disp_to_show = tensor2array(
                         disp[0], max_value=None, colormap='magma')
