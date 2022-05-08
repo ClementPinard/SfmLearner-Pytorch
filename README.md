@@ -194,7 +194,7 @@ Here were the trajectory statistics obtained after training the pose network.
 
 
 ## Conclusion and Future Goals
-In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories given by the
+In short, SemSynSin works reasonably well in generation of ego motion based on the indoor scenes and trajectories given by the
 MatterPort3D dataset. We believe that the model would be even more accurate at portraying these indoor trajectories if they
 were given even more training time.
 Some things that we can try going forward include:

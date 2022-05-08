@@ -543,6 +543,33 @@
       <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="discussion">
         <div class="container">
           <h3 class="mb-3">DISCUSSION</h3>
+
+        <p class="lead mb-3">
+          S
+        </p>
+
+        <p class="lead mb-3">
+          In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories
+          given by the MatterPort3D dataset. We believe that the model would be even more accurate at portraying these
+          indoor trajectories if they were given even more training time.
+        </p>
+
+        <p class="lead mb-3">
+          Some things that we can try going forward include:
+        </p>
+        <ol>
+          <li><strong>3D point loss:</strong>
+             3D spatial information is considered for this kind of loss. The depth map for the specified target frame can be
+            used to grab 3D coordinates for a specific pixel in the target frame. In a similar method, the 3D coordinates for
+            the source pixel associated with that specific target pixel can be obtained by applying a transformation matrix to
+            the depth maps. After these two have been obtained, 3D loss can be calculated as the difference between the transformed
+            source and target pixel. Lower loss indicates better 3D point loss.
+          </li>
+          <li><strong>Improve multi-scale loss:</strong>
+
+          </li>
+        </ol>
+
         </div>
       </section>
 
