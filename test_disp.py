@@ -56,24 +56,32 @@ def main(args):
             rgb_input_dir = dir_/ep/'rgb'
             rgb_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
             
+            sem_input_dir = dir_/ep/'semantics'
+            sem_test_files = natsorted(sem_input_dir.walkfiles('*.png'))
+            
             depth_input_dir = dir_/ep/'depth'
             depth_test_files = natsorted(depth_input_dir.walkfiles('*.png'))
             
-            img_list = []
-            sequence = [-1, 1]
             for i in range(1, len(rgb_test_files)-1):   
                              
                 # target image
                 out_img = imread(rgb_test_files[i])
                 tgt_img = array2tensor(out_img).to(device)
+                
+                # semantic images
+                sem_out_img = imread(sem_test_files[i])
+                sem_tgt_img = array2tensor(sem_out_img).to(device)
                     
                 # target depth   
                 gt_depth = imread(depth_test_files[i])
                 gt_depth = np.transpose(gt_depth/255., (2, 0, 1))[0].astype(np.float32)
                 gt_depth = gt_depth.clip(0.01, 1.0)
                 
-                # predicted depth 
-                disp = disp_net(tgt_img).cpu().numpy()[0,0]
+                # predicted depth
+                if args.with_semantics:
+                     disp = disp_net(tgt_img, sem_tgt_img).cpu().numpy()[0,0]
+                else:
+                    disp = disp_net(tgt_img).cpu().numpy()[0,0]
                 pred_depth = (1. / disp).clip(0.01, 10.0)          
                 
                 scale_factor = np.median(gt_depth) / np.median(pred_depth)
