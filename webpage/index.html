@@ -452,12 +452,12 @@
             For this reason, we were only able to define and train three main
             experiments: 
             <ol>
+              <li><strong>RGB-only</strong> In this experiment we simply adapted the model introduced
+                in [6] to work on our dataset.
+              </li>
               <li><strong>Artifact Mask</strong>
                 In this experiment an artifact mask was generated in order to mask out occlusion pixels that were less relevant
                 to the prediction of the next frame.
-              </li>
-              <li><strong>RGB-only</strong> In this experiment we simply adapted the model introduced
-                in [6] to work on our dataset.
               </li>
               <li><strong>RGB and Semantic Encoded</strong>
                 In this experiment both RGB and semantic encoded networks were adapted to the model described in [6] to work
@@ -471,16 +471,8 @@
             into the depth network, feeding RGB and semantic encoded networks into the depth network, and using an occlusion/artifact
             mask in order to remove the "least important" pixels in every frame.
           </p>
-
-          <h5 class="mb-3 text-primary">1: Artifact Mask</h5>
-          <p class="lead mb-3">
-            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using an artifact
-            mask to detect the least important pixels for predicting the next step of the trajectory. Ideally, this mask would
-            remove the pixels least important for predicting the next frame, which should optimize the ego motion video produced
-            by the model.
-          </p>
-
-          <h5 class="mb-3 text-primary">2: RGB Encoded Network</h5>
+          
+          <h5 class="mb-3 text-primary">3.2: RGB Encoded Network</h5>
           <p class="lead mb-3">
             As mentioned above, this particular experiment adapted Unsupervised Learning of Depth and Ego Motion's depth network
             to the VLN trajectory and Matterport3D datasets [6]. As described in section 2.3.1 in Approach above, bilinear interpolation
@@ -488,7 +480,16 @@
             made less sense, the loss function described in 2.3.3 was applied instead.
           </p>
 
-          <h5 class="mb-3 text-primary">3: Semantic and RGB Encoded Network</h5>
+          <h5 class="mb-3 text-primary">3.3: Artifact Mask</h5>
+          <p class="lead mb-3">
+            As described in section 2.3.2 of Approach above, one of the experiments conducted involved using an artifact
+            mask to detect the least important pixels for predicting the next step of the trajectory. Ideally, this mask would
+            remove the pixels least important for predicting the next frame, which should optimize the ego motion video produced
+            by the model.
+          </p>
+
+
+          <h5 class="mb-3 text-primary">3.4: Semantic and RGB Encoded Network</h5>
           <p class="lead mb-3">
             The semantic segmentation network is one part of the SemSynSin model that needs supervised learning. We believe
             this addition to the depth network would increase depth map clarity due to the following reasons [8]:
@@ -569,10 +570,41 @@
           </p>
 
           <p class="lead mb-3" > 
-            In the second experiment, which now includes the artifact mask, 
+            In the second experiment (fourth column), which now includes the artifact mask, 
             it seems that the model better understands depth: it tends to predict 
-            ceilings to be further away (darker) 
+            ceilings to be further away (darker color) and floors at the bottom-center 
+            to be closer (lighter color). Nontheless, depth predictions are 
+            generally more blurry than the other two experiments. 
           </p>
+
+          <p class="lead mb-3" >
+            Finally, in the 
+            third experiment (right-most column) we observe that with semantic
+            information taken into account, the predicted depth better captures 
+            the structure of the environments, <i>e.g.,</i>
+            features like door frames, stairs, etc. However, every few frames, 
+            the model predicts highly blurry images that follow the same diagonal 
+            gradient pattern: brightest a the top-left corner and darkest a the 
+            bottom-right corner. 
+            This strange behavior may be due to several reasons: 
+          </p>
+          <ol>
+            <li>
+              The model was not explicitly trained to handle occlusions or visual artifacts. 
+            </li>
+          <li>
+             There are repetitive patterns in the semantic masks.
+            </li>
+          <li>
+           The shortest-path-follower algorithm we used to obtain the data tends 
+            to navigate close to walls and obstacles. For example, if the agent is 
+            navigating very close to an object on the wall, i.e. a bookcase, it would
+            show up with some features in RGB. However, this same bookcase 
+            would show up as a huge featureless colored blob in the semantic mask.
+            We theorize that the gradients that are seen here result from the sharp
+            cutoff between this semantic featureless blob and the rest of the scene.
+            </li>
+          </ol>
 
           <p class="lead mb-3" > 
             
@@ -609,7 +641,67 @@
             </figure>
             </div>
           </p>
+        
+        <hr>
 
+        <h6 class="mb-3 text-primary">Pose Network</h6>
+        
+        <p class="lead mb-3"> 
+          For this evaluation, we ran pose inference on the same set of 
+          trajectories as with the depth network. Specifically, we provide the 
+          newtork with a viewpoint at some time step \(t\) and a viewpoint at 
+          time step \(t+1\). Then, we predict the pose transformation between them 
+          using either ground truth depth or the predicted depth. Finally, 
+          we warp the image at time-step \(t+1\) to the coordinate frame of the 
+          image at time-step \(t\) and display the corresponding result. 
+        </p>
+
+        <p class="lead mb-3"> 
+          We show the resulting warps for <strong>experiment 1</strong> in <strong>Figure 6</strong>. 
+          In each row, the left-most image sequence always show the image at time step \(t\),
+          the right-most show the image a time step \(t+1\), and the ones at the center 
+          are the warps. Here, we used the corresponding ground truth depth. 
+        </p>
+
+        <p class="lead mb-3" > 
+            
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-262_2azQ1b91cZZ-262-rgb-61.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-412_pLe4wQe7qrG-412-rgb-29.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-670_zsNo4HB9uLZ-670-rgb-56.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-694_EU6Fwq7SyZv-694-rgb-44.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-850_oLBMNvg9in8-850-rgb-87.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-1066_oLBMNvg9in8-1066-rgb-46.gif" class="img_item_3x">
+            <figure>
+              <strong>Figure 4. Warp predictions for experiment 1. The left-most 
+                sequence corresponds to images at time-step \(t\). The right-most 
+                sequence corresponds to images a time-step \(t+1\). The sequence 
+                at the center corresponds to the warped images from \(t+1\) to 
+                \(t\). 
+              </strong>
+          </figure>
+          </div>
+        </p>
+
+        <p class="lead mb-3" > 
+            
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-262_2azQ1b91cZZ-262-rgb-61.gif" class="img_item_3x">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-412_pLe4wQe7qrG-412-rgb-29.gif" class="img_item_3x">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-670_zsNo4HB9uLZ-670-rgb-56.gif" class="img_item_3x">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-694_EU6Fwq7SyZv-694-rgb-44.gif" class="img_item_3x">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-850_oLBMNvg9in8-850-rgb-87.gif" class="img_item_3x">
+            <img src="data/project/exp2_val/pose_unseen_gt_depth/ep-1066_oLBMNvg9in8-1066-rgb-46.gif" class="img_item_3x">
+            <figure>
+              <strong>Figure 4. Warp predictions for experiment 1. The left-most 
+                sequence corresponds to images at time-step \(t\). The right-most 
+                sequence corresponds to images a time-step \(t+1\). The sequence 
+                at the center corresponds to the warped images from \(t+1\) to 
+                \(t\). 
+              </strong>
+          </figure>
+          </div>
+        </p>
 
         </div>
       </section>

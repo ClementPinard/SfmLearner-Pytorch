@@ -55,6 +55,9 @@ def main(args):
             rgb_input_dir = dir_/ep/'rgb'
             rgb_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
             
+            sem_input_dir = dir_/ep/'semantics'
+            sem_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
+            
             depth_input_dir = dir_/ep/'depth'
             depth_test_files = natsorted(depth_input_dir.walkfiles('*.png'))
             
@@ -82,7 +85,13 @@ def main(args):
                     depth = convert_depth(depth).to(device)
                 else:
                     # using predicted depth 
-                    disp = disp_net(tgt_img)
+                    if args.with_semantics:
+                        sem_img = imread(sem_test_files[i])
+                        sem_tgt_img = array2tensor(sem_img).to(device)
+                        disp = disp_net(tgt_img, sem_tgt_img)
+                    else:
+                        disp = disp_net(tgt_img)
+                        
                     depth = (1. / disp)            
                 
                 # pose
