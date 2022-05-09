@@ -782,9 +782,10 @@
           Analyzing the predicted masks, we conclude that this method did not 
           achieve what we intended: the predicted masks do not predict occluding 
           objects nor visual artificats. In fact, in several cases, the masks 
-          predict large parts of the image. This may explain why the loss during 
+          predict large parts of the image. This may explain why the loss for the artifact mask during
           training and validation was the lowest, and why it did not improve 
-          significantly throughout the entire process. 
+          significantly throughout the entire process. As you can see in the third column, there is significant warping
+          in the outputs generated using the artifact mask.
         </p>
 
         <p class="lead mb-3" > 
@@ -822,6 +823,10 @@
           masks.  
           Finally, <strong>Figure 11</strong> compares the results when using 
           ground truth depth vs predicted depth.
+        </p>
+
+        <p class="lead mb-3">
+          As you can see, there is pretty significant warping in some of the generated outputs.
         </p>
 
         <p class="lead mb-3" > 
