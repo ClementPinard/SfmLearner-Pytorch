@@ -570,21 +570,21 @@
           </p>
 
           <p class="lead mb-3" > 
-            In the second experiment (fourth column), which now includes the artifact mask, 
-            it seems that the model better understands depth: it tends to predict 
-            ceilings to be further away (darker color) and floors at the bottom-center 
-            to be closer (lighter color). Nontheless, depth predictions are 
+            In the second experiment (the fourth column), which now includes the artifact mask,
+            the model better understands depth. It tends to predict
+            ceilings to be further away (a darker color) and floors at the bottom-center
+            to be closer (a lighter color). Nonetheless, the depth predictions here are
             generally more blurry than the other two experiments. 
           </p>
 
           <p class="lead mb-3" >
             Finally, in the 
             third experiment (right-most column) we observe that with semantic
-            information taken into account, the predicted depth better captures 
-            the structure of the environments, <i>e.g.,</i>
-            features like door frames, stairs, etc. However, every few frames, 
+            information taken into account, the model predicted depth GIFs better capture
+            the structure of the environments. For example,
+            features like door frames, stairs, etc. appear much clearer. However, every few frames,
             the model predicts highly blurry images that follow the same diagonal 
-            gradient pattern: brightest a the top-left corner and darkest a the 
+            gradient pattern. There is a bright patch at the top-left corner and a dark patch at the
             bottom-right corner. 
             This strange behavior may be due to several reasons: 
           </p>
