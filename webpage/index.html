@@ -524,30 +524,50 @@
 
       <section class="project-section p-3 p-lg-5 d-flex align-items-center" id="results">
         <div class="container">
-          <h3 class="mb-3">RESULTS</h3>
+          <h3 class="mb-3">4. RESULTS</h3>
           
           <p class="lead mb-3"> 
             In this section, we compare the results obtained on each of our 
-            proposed experiments. Because the approach is modular, each of the 
-            components, <i>i.e.,</i> depth network, pose netork, and artifact 
-            network can be independently assessed. As such, we designed both 
+            proposed experiments. Because the approach is modular both, the  
+            <strong>Depth Network</strong> and the <strong>Pose Network</strong>
+            can be independently assessed. As such, we designed both 
             qualitative and quantitative experiments for these modules. In the 
             paragraphs that follow, we explain each experiment in more detail 
             and show according results for each experiment.
           </p>
 
-          <h5 class="mb-3 text-primary">Training curves</h5>
+          <h5 class="mb-3 text-primary">4.1 Training curves</h5>
           
           <p class="lead mb-3"> 
-           Befor diving into the qualitative results, we show the trainining curves 
-           for each experiment in Figure 4
-
-      
+            Before diving into the qualitative results, we briefly show and discuss, 
+            the trainining curves for each experiment in <strong>Figure 4</strong>. 
+            First, we can observe that <strong>Experiment 1</strong> had an 
+            underfitting behavior: it converged to a high loss and its validation 
+            curve had the highest loss values out of all three experiments. Then, 
+            we can see that <strong>Experiment 2</strong> exhibits the lowest
+            loss values in both curves which is expected since this experiment 
+            makes use of the <strong>Artifact Mask</strong>. However, the model 
+            barely improves from its initial loss value. Finally, 
+            <strong>Experiment 3</strong> has the highest loss value during 
+            training due to the additional semantic loss. Nonetheless, the 
+            validation loss achieves lower loss values as compared to 
+            <strong>Experiment 1</strong>.
+            <div class="lead mb-3 img_container" align="center">
+              <img src="data/project/training_loss.png" class="img_item_2x">
+              <img src="data/project/validation_loss.png" class="img_item_2x">
+              <figure>
+                <strong>
+                  Figure 4. Training (top) and validation (bottom) curves. 
+                </strong>
+              </figure>
+            </div>
           </p>
 
-          <h5 class="mb-3 text-primary">Qualitative Tests</h5>
+          <hr>
 
-          <h6 class="mb-3 text-primary">Depth Network</h6>
+          <h5 class="mb-3 text-primary">4.2 Qualitative Tests</h5>
+
+          <h6 class="mb-3 text-primary">4.2.1 Depth Network</h6>
 
           <p class="lead mb-3"> 
             For this qualitative experiment, we simply ran depth inference on 
@@ -558,10 +578,13 @@
           </p>
 
           <p class="lead mb-3" > 
-            In Figure 5. we show depth predictions for <strong>experiment 1</strong> (left-most)
-            <strong>experiment 2</strong> (center) and <strong>experiment 3</strong> (right-most).
-            First, analyzing the depth results from experiment 1 (second column), we can observe 
-            that using only RGB images on this dataset, the model markedly underfitted.
+            In <strong>Figure 5</strong> we show depth predictions for 
+            <strong>Experiment 1</strong> (left-most)
+            <strong>Eperiment 2</strong> (center) and <strong>Experiment 3</strong> (right-most).
+            First, analyzing the depth results from <strong>Experiment 1</strong> 
+            (1st and 2nd columns), we can observe 
+            that only using RGB images on this dataset, the model markedly underfitted
+            which is consistent with the curves shown in <strong>Figure 4</strong>.
             Here, regardless of the environment and trajectory, the model always predicts very 
             similar results that look like two bright vertical rectangles to the left and right 
             and a darker rectangle to the center. The model also does not seem to understand 
@@ -570,7 +593,8 @@
           </p>
 
           <p class="lead mb-3" > 
-            In the second experiment (fourth column), which now includes the artifact mask, 
+            In the second experiment (3rd and 4th columns), which studies the 
+            effect of the <strong>Artifact Mask</strong>, 
             it seems that the model better understands depth: it tends to predict 
             ceilings to be further away (darker color) and floors at the bottom-center 
             to be closer (lighter color). Nontheless, depth predictions are 
@@ -579,30 +603,32 @@
 
           <p class="lead mb-3" >
             Finally, in the 
-            third experiment (right-most column) we observe that with semantic
+            third experiment (5th and 6th columns) we observe that with semantic
             information taken into account, the predicted depth better captures 
             the structure of the environments, <i>e.g.,</i>
-            features like door frames, stairs, etc. However, every few frames, 
+            features like door frames, stairs, etc., are more evident on the 
+            predictions. However, every few frames, 
             the model predicts highly blurry images that follow the same diagonal 
             gradient pattern: brightest a the top-left corner and darkest a the 
             bottom-right corner. 
-            This strange behavior may be due to several reasons: 
+            We posit that this strange behavior may be due to several reasons, 
+            for instance:
           </p>
           <ol>
             <li>
               The model was not explicitly trained to handle occlusions or visual artifacts. 
             </li>
-          <li>
+            <li>
              There are repetitive patterns in the semantic masks.
             </li>
-          <li>
-           The shortest-path-follower algorithm we used to obtain the data tends 
-            to navigate close to walls and obstacles. For example, if the agent is 
-            navigating very close to an object on the wall, i.e. a bookcase, it would
-            show up with some features in RGB. However, this same bookcase 
-            would show up as a huge featureless colored blob in the semantic mask.
-            We theorize that the gradients that are seen here result from the sharp
-            cutoff between this semantic featureless blob and the rest of the scene.
+            <li>
+              The shortest-path-follower algorithm we used to obtain the data tends 
+              to navigate close to walls and obstacles. For example, if the agent is 
+              navigating very close to an object on the wall, i.e. a bookcase, it would
+              show up with some features in RGB. However, this same bookcase 
+              would show up as a huge featureless colored blob in the semantic mask.
+              We theorize that the gradients that are seen here result from the sharp
+              cutoff between this semantic featureless blob and the rest of the scene.
             </li>
           </ol>
 
@@ -634,9 +660,8 @@
               <img src="data/project/exp3_val/depth_unseen/ep-1066_oLBMNvg9in8-1066-rgb-47.gif" class="img_item">
   
               <figure>
-                <strong>Figure 4. Depth predictions. The left-most RGB and depth columns correspond to the results 
-                  for experiment1, the center columns correspond to experiment 2, and the 
-                  right-most columns correspond to experiment 3. 
+                <strong>Figure 4. Depth predictions. Experiment 1 (1st and 2nd cols),
+                  Experiment 2 (3rd and 4th cols) and Experiment 3 (5th and 6th cols).  
                 </strong>
             </figure>
             </div>
@@ -644,7 +669,7 @@
         
         <hr>
 
-        <h6 class="mb-3 text-primary">Pose Network</h6>
+        <h6 class="mb-3 text-primary">4.2.2 Pose Network</h6>
         
         <p class="lead mb-3"> 
           For this evaluation, we ran pose inference on the same set of 
@@ -657,27 +682,40 @@
         </p>
 
         <p class="lead mb-3"> 
-          We show the resulting warps for <strong>experiment 1</strong> in <strong>Figure 6</strong>. 
+          We show the resulting warps for <strong>Experiment 1</strong> in 
+          <strong>Figure 6</strong>. 
           In each row, the left-most image sequence always show the image at time step \(t\),
           the right-most show the image a time step \(t+1\), and the ones at the center 
           are the warps. Here, we used the corresponding ground truth depth. 
+          <strong>Figure 7</strong> shows one example comparing the resulting warps 
+          when using ground truth depth (top) vs predicted depth (bottom). 
         </p>
 
         <p class="lead mb-3" > 
-            
           <div class="lead mb-3 img_container" align="center">
             <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-262_2azQ1b91cZZ-262-rgb-61.gif" class="img_item_3x">
             <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-412_pLe4wQe7qrG-412-rgb-29.gif" class="img_item_3x">
             <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-670_zsNo4HB9uLZ-670-rgb-56.gif" class="img_item_3x">
             <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-694_EU6Fwq7SyZv-694-rgb-44.gif" class="img_item_3x">
-            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-850_oLBMNvg9in8-850-rgb-87.gif" class="img_item_3x">
             <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-1066_oLBMNvg9in8-1066-rgb-46.gif" class="img_item_3x">
             <figure>
-              <strong>Figure 4. Warp predictions for experiment 1. The left-most 
+              <strong>Figure 6. Experiment 1 warps. The left-most 
                 sequence corresponds to images at time-step \(t\). The right-most 
                 sequence corresponds to images a time-step \(t+1\). The sequence 
                 at the center corresponds to the warped images from \(t+1\) to 
                 \(t\). 
+              </strong>
+          </figure>
+          </div>
+        </p>
+
+        <p class="lead mb-3" > 
+          <div class="lead mb-3 img_container" align="center">
+            <img src="data/project/exp1_val/pose_unseen_gt_depth/ep-850_oLBMNvg9in8-850-rgb-87.gif" class="img_item_3x">
+            <img src="data/project/exp1_val/pose_unseen_pred_depth/ep-850_oLBMNvg9in8-850-rgb-87.gif" class="img_item_3x">
+            <figure>
+              <strong>Figure 7. Experiment 1 warps comparing the use of ground 
+                truth depth (top) vs predicted depth (bottom). 
               </strong>
           </figure>
           </div>
