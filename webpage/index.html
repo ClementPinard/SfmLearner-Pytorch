@@ -528,9 +528,8 @@
           
           <p class="lead mb-3"> 
             In this section, we compare the results obtained on each of our 
-            proposed experiments. Because the approach is modular both, the  
-            <strong>Depth Network</strong> and the <strong>Pose Network</strong>
-            can be independently assessed. As such, we designed both 
+            proposed experiments. Because the approach is modular, both the
+            depth network and pose network can be independently assessed. As such, we designed both
             qualitative and quantitative experiments for these modules. In the 
             paragraphs that follow, we explain each experiment in more detail 
             and show according results for each experiment.
@@ -538,7 +537,7 @@
 
           <h5 class="mb-3 text-primary">4.1 Training curves</h5>
           
-          <p class="lead mb-3"> 
+          <p class="lead mb-3">
             Before diving into the qualitative results, we briefly show and discuss, 
             the trainining curves for each experiment in <strong>Figure 4</strong>. 
             First, we can observe that <strong>Experiment 1</strong> had an 
@@ -571,13 +570,13 @@
 
           <p class="lead mb-3"> 
             For this qualitative experiment, we simply ran depth inference on 
-            a set of trajectories from the test set. We note that, in contrast 
+            a set of trajectories from the test set. It should be noted that, in contrast
             to the validation set, the environments in the test set were never 
             seen by the networks. The environments in the validation set are 
-            the same as in the train set, only the trajectories are different.       
+            the same as those found in the training set. The only difference are the trajectories.
           </p>
 
-          <p class="lead mb-3" > 
+          <p class="lead mb-3" >
             In <strong>Figure 5</strong> we show depth predictions for 
             <strong>Experiment 1</strong> (left-most)
             <strong>Eperiment 2</strong> (center) and <strong>Experiment 3</strong> (right-most).
@@ -585,31 +584,30 @@
             (1st and 2nd columns), we can observe 
             that only using RGB images on this dataset, the model markedly underfitted
             which is consistent with the curves shown in <strong>Figure 4</strong>.
-            Here, regardless of the environment and trajectory, the model always predicts very 
+            Here, regardless of the environment and trajectory, the model always predicts very
             similar results that look like two bright vertical rectangles to the left and right 
             and a darker rectangle to the center. The model also does not seem to understand 
             depth, as it tends to predict darker spots on the bottom center, whereas it should 
             be the opposite since in these visualizations darker means further away. 
           </p>
 
-          <p class="lead mb-3" > 
+          <p class="lead mb-3" >
             In the second experiment (3rd and 4th columns), which studies the 
             effect of the <strong>Artifact Mask</strong>, 
-            it seems that the model better understands depth: it tends to predict 
-            ceilings to be further away (darker color) and floors at the bottom-center 
-            to be closer (lighter color). Nontheless, depth predictions are 
-            generally more blurry than the other two experiments. 
+            it seems that the model better understands depth. It tends to predict
+            ceilings to be further away (a darker color) and floors at the bottom-center
+            to be closer (a lighter color). Nonetheless, depth predictions are
+            generally more blurry than the other two experiments.
           </p>
 
           <p class="lead mb-3" >
-            Finally, in the 
+            Finally, in the
             third experiment (5th and 6th columns) we observe that with semantic
             information taken into account, the predicted depth better captures 
-            the structure of the environments, <i>e.g.,</i>
-            features like door frames, stairs, etc., are more evident on the 
-            predictions. However, every few frames, 
-            the model predicts highly blurry images that follow the same diagonal 
-            gradient pattern: brightest a the top-left corner and darkest a the 
+            the structure of the environments. For example,
+            features like door frames, stairs, etc., appear much clearer. However, every few frames,
+            the model predicts highly blurry images that follow the same diagonal
+            gradient pattern. There is a bright patch at the top-left corner and a dark patch at the
             bottom-right corner. 
             We posit that this strange behavior may be due to several reasons, 
             for instance:
@@ -673,10 +671,10 @@
         
         <p class="lead mb-3"> 
           For this evaluation, we ran pose inference on the same set of 
-          trajectories as with the depth network. Specifically, we provide the 
-          newtork with a viewpoint at some time step \(t\) and a viewpoint at 
+          trajectories as we did with the depth network. Specifically, we provide the
+          network with a viewpoint at some time step \(t\) and another viewpoint at
           time step \(t+1\). Then, we predict the pose transformation between them 
-          using either ground truth depth or the predicted depth. Finally, 
+          using either the ground truth depth or the predicted depth. Finally,
           we warp the image at time-step \(t+1\) to the coordinate frame of the 
           image at time-step \(t\) and display the corresponding result. 
         </p>
@@ -751,13 +749,29 @@
           <h3 class="mb-3">DISCUSSION</h3>
 
         <p class="lead mb-3">
-          S
+          Through the 3 experiments conducted, we discovered the following:
         </p>
+          <ol>
+            <li>
+              RGB-only experimental cases tended to underfit the dataset. Resulting GIFs tended to all look the same,
+              regardless of what environment they were generated from.
+            </li>
+          <li>
+            The RGB and Artifact mask experimental case tended to do better than RGB-only. It more accurately labels
+            ceilings to be further and floors to be closer.
+            </li>
+            <li>
+            The RGB and semantic mask experimental case gave very unexpected diagonal gradient-like results. We believe
+              this to be the result of the shortest path follower algorithm sticking the corners of the environments. Due to this,
+              it is more likely to encounter large featureless semantic mask blobs that take up most of its FOV, thus generating
+              a diagonal gradient across the screen.
+            </li>
+          </ol>
 
         <p class="lead mb-3">
-          In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories
-          given by the MatterPort3D dataset. We believe that the model would be even more accurate at portraying these
-          indoor trajectories if they were given even more training time.
+          Despite these interesting quirks, SemSynSin works reasonably well in generation of ego motion based on the indoor
+          scenes and trajectories given by the MatterPort3D dataset. We believe that the model would be even more accurate
+          at portraying these indoor trajectories if they were given even more training time.
         </p>
 
         <p class="lead mb-3">
@@ -772,7 +786,11 @@
             source and target pixel. Lower loss indicates better 3D point loss.
           </li>
           <li><strong>Improve multi-scale loss:</strong>
-
+            In this project, we use bilinear sampling to derive gradients. In particular they are derived from the pixel
+            intensity difference between the target pixel and the 4-neighbor pixels from the source. Sometimes, the correct
+            pixel is far from the current local estimate, which is where multi-scale smoothness loss comes in.
+            It allows gradients to be propagated from larger spatial regions. Multi scale loss in this case is the combination
+            of the individual losses at each scale in the decoder.
           </li>
         </ol>
 
