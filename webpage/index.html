@@ -895,7 +895,7 @@
           These results show that <strong>Experiment 1</strong> acheived 
           significantly lower error as compared to the other two experiments. 
           Nonetheless, from visual inspection in <strong>Section 4.2.1</strong> 
-          we observed that <strong>Experiment 1</strong> underfit to the training 
+          we observed that <strong>Experiment 1</strong> underfit to the training
           process. The reported errors for the remaining two experiments are 
           similar. As we discussed before, these experiments showed various limitations:
           in <strong>Experiment 2</strong> the predicted depths are very blurry, 
@@ -967,6 +967,13 @@
               this to be the result of the shortest path follower algorithm sticking the corners of the environments. Due to this,
               it is more likely to encounter large featureless semantic mask blobs that take up most of its FOV, thus generating
               a diagonal gradient across the screen.
+            </li>
+            <li>
+              Pose warping based on ground truth produces slightly better results than those that were based on predictions
+            </li>
+            <li>
+              The artifact mask ended up masking out most of the relevant parts of a scene. This experiment did not work
+              as expected, and therefore produced extremely warped outputs.
             </li>
           </ol>
 
