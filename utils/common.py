@@ -131,7 +131,7 @@ def array2tensor(arr, rgb_max = 255.0, mean = 0.5, std = 0.5):
     tensor = torch.from_numpy(arr.astype(np.float32)).unsqueeze(0)
     tensor = ((tensor - mean ) / std)
     return tensor
-
+    
 def convert_depth(arr, in_max = 255, in_min = 0, out_max = 10.01, out_min = 1.5):
     arr = np.transpose(arr, (2, 0, 1))[0]
     arr = torch.from_numpy(arr.astype(np.float32)).unsqueeze(0).unsqueeze(0)
