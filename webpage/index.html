@@ -529,8 +529,8 @@
           <p class="lead mb-3"> 
             In this section, we compare the results obtained on each of our 
             proposed experiments. Because the approach is modular, each of the 
-            components, <i>i.e.,</i> depth network, pose network, and artifact
-            network can be independently assessed. As such, we designed both 
+            components (depth network, pose network, and artifact
+            network) can be independently assessed. As such, we designed both
             qualitative and quantitative experiments for these modules. In the 
             paragraphs that follow, we explain each experiment in more detail 
             and show according results for each experiment.
@@ -551,7 +551,7 @@
 
           <p class="lead mb-3"> 
             For this qualitative experiment, we simply ran depth inference on 
-            a set of trajectories from the test set. We note that, in contrast 
+            a set of trajectories from the test set. It should be noted that, in contrast
             to the validation set, the environments in the test set were never 
             seen by the networks. The environments in the validation set are 
             the same as those found in the training set. The only difference are the trajectories.
@@ -560,8 +560,8 @@
           <p class="lead mb-3" > 
             In Figure 5. we show depth predictions for <strong>experiment 1</strong> (left-most)
             <strong>experiment 2</strong> (center) and <strong>experiment 3</strong> (right-most).
-            First, analyzing the depth results from experiment 1 (second column), we can observe 
-            that using only RGB images on this dataset, the model markedly underfitted.
+            First, analyzing the depth results from experiment 1 (the second column), we can observe
+            that when using only RGB images on this dataset, the model is markedly underfitted.
             Here, regardless of the environment and trajectory, the model always predicts very 
             similar results that look like two bright vertical rectangles to the left and right 
             and a darker rectangle to the center. The model also does not seem to understand 
