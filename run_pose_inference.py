@@ -7,7 +7,7 @@ from imageio import imread, mimsave
 from path import Path
 from natsort import natsorted
 
-from models import PoseExpNet, DispNetS, SemDispNetS
+from models import PoseExpNet, DispNetS, SemDispNetS, SemPoseExpNet
 from utils.common import convert_depth, tensor2array, array2tensor
 from utils.loss_functions import photometric_reconstruction_loss
 
@@ -19,15 +19,16 @@ def main(args):
     if args.use_pred_depth:
         if args.with_semantics:
             disp_net = SemDispNetS().to(device)
+            pose_net = SemPoseExpNet(output_exp=args.use_exp_mask).to(device)
         else:
             disp_net = DispNetS().to(device)
-        
+            pose_net = PoseExpNet(output_exp=args.use_exp_mask).to(device)
+            
         disp_weights = torch.load(args.pretrained_disp)
         disp_net.load_state_dict(disp_weights['state_dict'])
         disp_net.eval()
     
     # Initialize pose network
-    pose_net = PoseExpNet(output_exp=args.use_exp_mask).to(device)
     weights = torch.load(args.pretrained_pose)
     pose_net.load_state_dict(weights['state_dict'])
     pose_net.eval()
@@ -56,7 +57,7 @@ def main(args):
             rgb_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
             
             sem_input_dir = dir_/ep/'semantics'
-            sem_test_files = natsorted(rgb_input_dir.walkfiles('*.png'))
+            sem_test_files = natsorted(sem_input_dir.walkfiles('*.png'))
             
             depth_input_dir = dir_/ep/'depth'
             depth_test_files = natsorted(depth_input_dir.walkfiles('*.png'))
