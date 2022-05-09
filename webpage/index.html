@@ -648,10 +648,10 @@
         
         <p class="lead mb-3"> 
           For this evaluation, we ran pose inference on the same set of 
-          trajectories as with the depth network. Specifically, we provide the 
-          newtork with a viewpoint at some time step \(t\) and a viewpoint at 
+          trajectories as we did with the depth network. Specifically, we provide the
+          network with a viewpoint at some time step \(t\) and another viewpoint at
           time step \(t+1\). Then, we predict the pose transformation between them 
-          using either ground truth depth or the predicted depth. Finally, 
+          using either the ground truth depth or the predicted depth. Finally,
           we warp the image at time-step \(t+1\) to the coordinate frame of the 
           image at time-step \(t\) and display the corresponding result. 
         </p>
