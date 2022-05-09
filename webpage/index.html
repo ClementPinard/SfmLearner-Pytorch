@@ -713,11 +713,27 @@
           <h3 class="mb-3">DISCUSSION</h3>
 
         <p class="lead mb-3">
-          S
+          Through the 3 experiments conducted, we discovered the following:
         </p>
+          <ol>
+            <li>
+              RGB-only experimental cases tended to underfit the dataset. Resulting GIFs tended to all look the same,
+              regardless of what environment they were generated from.
+            </li>
+          <li>
+            The RGB and Artifact mask experimental case tended to do better than RGB-only. It more accurately labels
+            ceilings to be further and floors to be closer.
+            </li>
+            <li>
+            The RGB and semantic mask experimental case gave very unexpected diagonal gradient-like results. We believe
+              this to be the result of the shortest path follower algorithm sticking the corners of the environments. Due to this,
+              it is more likely to encounter large featureless semantic mask blobs that take up most of its FOV, thus generating
+              a diagonal gradient across the screen.
+            </li>
+          </ol>
 
         <p class="lead mb-3">
-          In short, SemSyn works reasonably well in generation of ego motion based on the indoor scenes and trajectories
+          In short, SemSynSin works reasonably well in generation of ego motion based on the indoor scenes and trajectories
           given by the MatterPort3D dataset. We believe that the model would be even more accurate at portraying these
           indoor trajectories if they were given even more training time.
         </p>
