@@ -542,7 +542,7 @@
            Before diving into the qualitative results, we show the training curves
            for each experiment in Figure 4
 
-      
+      <hr>
           </p>
 
           <h5 class="mb-3 text-primary">Qualitative Tests</h5>
@@ -734,7 +734,11 @@
             source and target pixel. Lower loss indicates better 3D point loss.
           </li>
           <li><strong>Improve multi-scale loss:</strong>
-
+            In this project, we use bilinear sampling to derive gradients. In particular they are derived from the pixel
+            intensity difference between the target pixel and the 4-neighbor pixels from the source. Sometimes, the correct
+            pixel is far from the current local estimate, which is where multi-scale smoothness loss comes in.
+            It allows gradients to be propagated from larger spatial regions. Multi scale loss in this case is the combination
+            of the individual losses at each scale in the decoder.
           </li>
         </ol>
 
