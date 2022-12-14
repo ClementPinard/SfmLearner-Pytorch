@@ -2,6 +2,7 @@ import torch
 
 from imageio import imread, imsave
 from skimage.transform import resize
+from skimage.util import img_as_float
 import numpy as np
 from path import Path
 import argparse
@@ -55,7 +56,7 @@ def main():
 
     for file in tqdm(test_files):
 
-        img = imread(file)
+        img = img_as_float(imread(file))
 
         h,w,_ = img.shape
         if (not args.no_resize) and (h != args.img_height or w != args.img_width):
