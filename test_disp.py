@@ -105,8 +105,7 @@ def main():
         pred_depth = 1/pred_disp
         pred_depth_zoomed = zoom(pred_depth,
                                  (gt_depth.shape[0]/pred_depth.shape[0],
-                                  gt_depth.shape[1]/pred_depth.shape[1])
-                                 ).clip(args.min_depth, args.max_depth)
+                                  gt_depth.shape[1]/pred_depth.shape[1]))
         if sample['mask'] is not None:
             pred_depth_zoomed = pred_depth_zoomed[sample['mask']]
             gt_depth = gt_depth[sample['mask']]
@@ -121,9 +120,12 @@ def main():
             displacement_magnitudes = poses[0,:,:3].norm(2,1).cpu().numpy()
 
             scale_factor = np.mean(sample['displacements'] / displacement_magnitudes)
-            errors[0,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
+            scaled_pred = (pred_depth_zoomed*scale_factor).clip(args.min_depth, args.max_depth)
+            errors[0,:,j] = compute_errors(gt_depth, scaled_pred)
 
-        scale_factor = np.median(gt_depth)/np.median(pred_depth_zoomed)
+        median_pred = np.median(pred_depth_zoomed.clip(args.min_depth, args.max_depth))
+        scale_factor = np.median(gt_depth)/median_pred
+        scaled_pred = (pred_depth_zoomed*scale_factor).clip(args.min_depth, args.max_depth)
         errors[1,:,j] = compute_errors(gt_depth, pred_depth_zoomed*scale_factor)
 
     mean_errors = errors.mean(2)

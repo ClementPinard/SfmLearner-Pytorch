@@ -113,9 +113,11 @@ def compute_depth_errors(gt, pred, crop=True):
             continue
 
         valid_gt = current_gt[valid]
-        valid_pred = current_pred[valid].clamp(1e-3, 80)
+        valid_pred = current_pred[valid]
 
-        valid_pred = valid_pred * torch.median(valid_gt)/torch.median(valid_pred)
+        median_pred = torch.median(valid_pred.clamp(1e-3, 80))
+        valid_pred = valid_pred * torch.median(valid_gt) / median_pred
+        valid_pred = valid_pred.clamp(1e-3, 80)
 
         thresh = torch.max((valid_gt / valid_pred), (valid_pred / valid_gt))
         a1 += (thresh < 1.25).float().mean()
