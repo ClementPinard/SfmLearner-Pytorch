@@ -112,7 +112,7 @@ While **ATE** is often said to be enough to trajectory estimation, **RE** seems 
 
 ## Pretrained Nets
 
-[Avalaible here](https://drive.google.com/drive/folders/1H1AFqSS8wr_YzwG2xWwAQHTfXN5Moxmx)
+valaible in the [weights](/weights) folder
 
 Arguments used :
 
